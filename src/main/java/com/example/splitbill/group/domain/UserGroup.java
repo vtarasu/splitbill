@@ -1,7 +1,7 @@
-package com.example.splitbill.group;
+package com.example.splitbill.group.domain;
 
-import com.example.splitbill.user.User;
-import com.example.splitbill.user.UserRole;
+import com.example.splitbill.user.domain.User;
+import com.example.splitbill.user.dto.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;

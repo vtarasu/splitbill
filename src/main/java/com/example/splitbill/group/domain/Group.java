@@ -1,6 +1,5 @@
-package com.example.splitbill.group;
+package com.example.splitbill.group.domain;
 
-import com.example.splitbill.user.User;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -23,7 +22,7 @@ public class Group {
     private String groupName;
     private String groupDescription;
 
-    @OneToMany(mappedBy = "group")
+    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL)
     private List<UserGroup> users;
 
     @CreationTimestamp

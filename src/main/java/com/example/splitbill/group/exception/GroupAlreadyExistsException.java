@@ -1,4 +1,4 @@
-package com.example.splitbill.group;
+package com.example.splitbill.group.exception;
 
 public class GroupAlreadyExistsException extends RuntimeException {
     private String message;

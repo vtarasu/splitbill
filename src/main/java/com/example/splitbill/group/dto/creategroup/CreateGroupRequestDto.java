@@ -1,4 +1,4 @@
-package com.example.splitbill.group;
+package com.example.splitbill.group.dto.creategroup;
 
 import lombok.Data;
 

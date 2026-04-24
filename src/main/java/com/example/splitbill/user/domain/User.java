@@ -1,12 +1,13 @@
-package com.example.splitbill.user;
+package com.example.splitbill.user.domain;
 
-import com.example.splitbill.group.Group;
-import com.example.splitbill.group.UserGroup;
+import com.example.splitbill.group.domain.UserGroup;
+import com.example.splitbill.user.dto.CreateUserRequestDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -27,7 +28,7 @@ public class User {
     private String emailId;
     private String mobileNumber;
 
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<UserGroup> userGroups;
 
     @CreationTimestamp
@@ -38,6 +39,7 @@ public class User {
                 .emailId(createUserRequestDto.getEmailId())
                 .username(createUserRequestDto.getUsername())
                 .mobileNumber(createUserRequestDto.getMobileNumber())
+                .userGroups(new ArrayList<>())
                 .build();
     }
 }

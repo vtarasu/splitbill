@@ -1,4 +1,4 @@
-package com.example.splitbill.user;
+package com.example.splitbill.user.exception;
 
 public class UserAlreadyExistsException extends RuntimeException {
     private String message;

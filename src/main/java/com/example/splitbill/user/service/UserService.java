@@ -1,5 +1,9 @@
-package com.example.splitbill.user;
+package com.example.splitbill.user.service;
 
+import com.example.splitbill.user.domain.User;
+import com.example.splitbill.user.dto.CreateUserResponseDto;
+import com.example.splitbill.user.exception.UserAlreadyExistsException;
+import com.example.splitbill.user.repo.UserRepository;
 import org.springframework.stereotype.Service;
 
 @Service

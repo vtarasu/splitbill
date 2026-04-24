@@ -1,4 +1,4 @@
-package com.example.splitbill.user;
+package com.example.splitbill.user.dto;
 
 import lombok.*;
 
