@@ -28,6 +28,7 @@ public class ExpenseService {
                 .split(splits)
                 .build();
 
+        splits.forEach(expenseSplit -> expenseSplit.setExpense(expense));
         var savedexpense = expenseRepo.save(expense);
         return savedexpense;
     }
