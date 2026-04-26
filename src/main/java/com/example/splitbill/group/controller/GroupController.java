@@ -3,8 +3,10 @@ package com.example.splitbill.group.controller;
 import com.example.splitbill.group.dto.adduser.AddUserToGroupDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupRequestDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupResponseDto;
+import com.example.splitbill.group.dto.removeuser.RemoveUserFromGroupDto;
 import com.example.splitbill.group.service.GroupService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -28,5 +30,11 @@ public class GroupController {
     @PostMapping("/add-user")
     public AddUserToGroupDto addUserToGroup(@RequestBody AddUserToGroupDto addUserToGroupDto) {
         return groupService.addUserToGroup(addUserToGroupDto);
+    }
+
+    @PostMapping("/remove-user")
+    public ResponseEntity<String> removeUserFromGroup(@RequestBody RemoveUserFromGroupDto removeUserFromGroupDto) {
+        groupService.removeUserFromGroup(removeUserFromGroupDto);
+        return ResponseEntity.ok("Removed user from group");
     }
 }

@@ -2,6 +2,7 @@ package com.example.splitbill.group.service;
 
 import com.example.splitbill.group.dto.creategroup.CreateGroupRequestDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupResponseDto;
+import com.example.splitbill.group.dto.removeuser.RemoveUserFromGroupDto;
 import com.example.splitbill.group.repo.UserGroupRepository;
 import com.example.splitbill.group.dto.adduser.AddUserToGroupDto;
 import com.example.splitbill.group.domain.Group;
@@ -12,6 +13,7 @@ import com.example.splitbill.group.repo.GroupRepository;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.UserRepository;
 import com.example.splitbill.user.dto.UserRole;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -80,5 +82,15 @@ public class GroupService {
                 .userId(savedUsers)
                 .groupId(savedGroup.getFirst())
                 .build();
+    }
+
+    @Transactional
+    public void removeUserFromGroup(RemoveUserFromGroupDto removeUserFromGroupDto) {
+        var userGroup = userGroupRepository.findByUserIdAndGroupId(removeUserFromGroupDto.getUserId(),
+                        removeUserFromGroupDto.getGroupId())
+                .orElseThrow(() -> new UserDoesNotExistsException("User/Group doesn't exist"));
+        userGroup.getUser().getUserGroups().remove(removeUserFromGroupDto.getGroupId());
+        userGroup.getGroup().getUsers().remove(removeUserFromGroupDto.getUserId());
+        userGroupRepository.delete(userGroup);
     }
 }
