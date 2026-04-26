@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Map;
 
 @NoArgsConstructor
@@ -15,7 +14,8 @@ import java.util.Map;
 @Data
 public class AddExpenseRequestDto {
     private String expenseName;
-    private Map<Long, Double> paidByUsers;
+    private Long paidByUsers;
+    private Long groupId;
     private Map<Long, Double> usersSharingExpense;
     private Long addedByUser;
     private Double amount;

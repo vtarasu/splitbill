@@ -23,6 +23,6 @@ public class ExpenseSplit {
     private Double amount;
 
     @ManyToOne
-    @JoinColumn(name = "id")
+    @JoinColumn(name = "expense_id")
     private Expense expense;
 }
