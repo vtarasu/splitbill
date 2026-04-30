@@ -18,15 +18,18 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
     @Override
     public List<GroupBalances> updateGroupBalance(Long groupId, List<ExpenseSplit> expenseSplit) {
         expenseSplit.stream().forEach(split -> {
+            if (split.getOwedBy().equals(split.getPaidBy())) {
+                return;
+            }
             var newBalance = new GroupBalances();
             var existingBalance = groupBalancesRepo.findByUserId1AndUserId2(split.getOwedBy(), split.getPaidBy());
-            if(existingBalance.isPresent()) {
+            if (existingBalance.isPresent()) {
                 newBalance = existingBalance.get();
                 newBalance.setBalance(split.getAmount() + existingBalance.get().getBalance());
                 groupBalancesRepo.save(newBalance);
             } else {
                 existingBalance = groupBalancesRepo.findByUserId1AndUserId2(split.getPaidBy(), split.getOwedBy());
-                if(existingBalance.isPresent()) {
+                if (existingBalance.isPresent()) {
                     newBalance = existingBalance.get();
                     newBalance.setBalance(existingBalance.get().getBalance() - split.getAmount());
                 } else {
