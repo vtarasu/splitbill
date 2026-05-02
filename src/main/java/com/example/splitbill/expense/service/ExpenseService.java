@@ -4,12 +4,18 @@ import com.example.splitbill.expense.domain.Expense;
 import com.example.splitbill.expense.domain.ExpenseSplit;
 import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.dto.AddExpenseRequestDto;
+import com.example.splitbill.expense.dto.GetExpensesRequestDto;
+import com.example.splitbill.expense.dto.GetExpensesResponseDto;
 import com.example.splitbill.expense.dto.SplitStrategy;
 import com.example.splitbill.expense.repo.ExpenseRepo;
 import com.example.splitbill.expense.service.strategy.ExpenseSplitStrategy;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -38,6 +44,7 @@ public class ExpenseService {
                 .userId(addExpenseRequestDto.getAddedByUser())
                 .groupId(addExpenseRequestDto.getGroupId())
                 .addedAt(addExpenseRequestDto.getExpenseDate())
+                .billAmount(addExpenseRequestDto.getAmount())
                 .splitStrategy(addExpenseRequestDto.getSplitStrategy())
                 .split(splits)
                 .splitDetails(splitDetails)
@@ -48,5 +55,12 @@ public class ExpenseService {
         var groupBalances = groupBalanceService.updateGroupBalance(addExpenseRequestDto.getGroupId(), splits);
         log.info("Expense saved successfully and group balances updated. savedExpense={}", savedExpense.getId());
         return groupBalances;
+    }
+
+    public List<GetExpensesResponseDto> getExpenses(GetExpensesRequestDto getExpensesRequestDto) {
+        var pageable = PageRequest.of(getExpensesRequestDto.getPageNo(), getExpensesRequestDto.getPageSize(),
+                Sort.by("addedAt").descending());
+        var expenses = expenseRepo.findAllByGroupId(getExpensesRequestDto.getGroupId(), pageable);
+        return expenses.stream().map(GetExpensesResponseDto::from).toList();
     }
 }

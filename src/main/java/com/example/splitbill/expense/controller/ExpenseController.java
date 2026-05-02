@@ -2,12 +2,11 @@ package com.example.splitbill.expense.controller;
 
 import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.dto.AddExpenseRequestDto;
+import com.example.splitbill.expense.dto.GetExpensesRequestDto;
+import com.example.splitbill.expense.dto.GetExpensesResponseDto;
 import com.example.splitbill.expense.service.ExpenseService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,5 +29,13 @@ public class ExpenseController {
         var groupBalances = expenseService.addExpense(addExpenseRequestDto);
         log.info("Expense added successfully. newBalances={}", groupBalances);
         return groupBalances;
+    }
+
+    @GetMapping
+    public List<GetExpensesResponseDto> getExpenses(@RequestBody GetExpensesRequestDto getExpensesRequestDto) {
+        log.info("Received request to get expenses for group. request={}", getExpensesRequestDto);
+        var expenses = expenseService.getExpenses(getExpensesRequestDto);
+        log.info("Retrieved expenses successfully. expenses={}", expenses.size());
+        return expenses;
     }
 }

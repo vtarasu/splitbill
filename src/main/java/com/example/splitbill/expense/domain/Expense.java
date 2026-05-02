@@ -22,6 +22,7 @@ public class Expense {
 
     private Long groupId;
     private Long userId;
+    private Double billAmount;
     private LocalDate addedAt;
     private String expense;
     private SplitStrategy splitStrategy;
