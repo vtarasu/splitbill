@@ -2,6 +2,7 @@ package com.example.splitbill.user.domain;
 
 import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.dto.CreateUserRequestDto;
+import com.example.splitbill.user.dto.UpdateUserDto;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -40,6 +41,15 @@ public class User {
                 .username(createUserRequestDto.getUsername())
                 .mobileNumber(createUserRequestDto.getMobileNumber())
                 .userGroups(new ArrayList<>())
+                .build();
+    }
+
+    public static User from(UpdateUserDto updateUserDto) {
+        return User.builder()
+                .id(updateUserDto.getId())
+                .emailId(updateUserDto.getEmailId())
+                .username(updateUserDto.getUsername())
+                .mobileNumber(updateUserDto.getMobileNumber())
                 .build();
     }
 }

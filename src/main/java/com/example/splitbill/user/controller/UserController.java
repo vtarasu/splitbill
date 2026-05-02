@@ -1,14 +1,12 @@
 package com.example.splitbill.user.controller;
 
+import com.example.splitbill.user.dto.UpdateUserDto;
 import com.example.splitbill.user.service.UserService;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.CreateUserRequestDto;
-import com.example.splitbill.user.dto.CreateUserResponseDto;
+import com.example.splitbill.user.dto.UserResponseDto;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
@@ -21,8 +19,13 @@ public class UserController {
     }
 
     @PostMapping("/add")
-    public CreateUserResponseDto createUser(@RequestBody CreateUserRequestDto createUserRequestDto) {
+    public UserResponseDto createUser(@RequestBody CreateUserRequestDto createUserRequestDto) {
         var user = User.from(createUserRequestDto);
         return userService.createNewUser(user);
+    }
+
+    @PostMapping("/update")
+    public UserResponseDto updateUser(@RequestBody UpdateUserDto updateUserDto) {
+        return userService.updateUser(updateUserDto);
     }
 }
