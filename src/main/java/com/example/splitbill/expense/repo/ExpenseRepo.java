@@ -10,6 +10,4 @@ import java.util.List;
 @Repository
 public interface ExpenseRepo extends JpaRepository<Expense, Long> {
     List<Expense> findAllByGroupId(Long groupId, Pageable pageable);
-
-    List<Expense> findAllByGroupId(Long groupId);
 }

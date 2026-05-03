@@ -13,6 +13,7 @@ public class GetExpensesResponseDto {
     private String description;
     private Long groupId;
     private Long paidBy;
+    private Long addedBy;
     private Double amount;
     private LocalDate addedAt;
 
@@ -21,7 +22,8 @@ public class GetExpensesResponseDto {
                 .expenseId(expense.getId())
                 .groupId(expense.getGroupId())
                 .description(expense.getExpense())
-                .paidBy(expense.getUserId())
+                .paidBy(expense.getPaidBy())
+                .addedBy(expense.getUserId())
                 .amount(expense.getBillAmount())
                 .addedAt(expense.getAddedAt())
                 .build();

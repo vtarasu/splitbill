@@ -42,6 +42,7 @@ public class ExpenseService {
         Expense expense = Expense.builder()
                 .expense(addExpenseRequestDto.getExpenseName())
                 .userId(addExpenseRequestDto.getAddedByUser())
+                .paidBy(addExpenseRequestDto.getPaidByUsers())
                 .groupId(addExpenseRequestDto.getGroupId())
                 .addedAt(addExpenseRequestDto.getExpenseDate())
                 .billAmount(addExpenseRequestDto.getAmount())

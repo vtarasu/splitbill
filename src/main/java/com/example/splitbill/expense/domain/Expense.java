@@ -22,6 +22,7 @@ public class Expense {
 
     private Long groupId;
     private Long userId;
+    private Long paidBy;
     private Double billAmount;
     private LocalDate addedAt;
     private String expense;

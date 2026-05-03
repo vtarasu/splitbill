@@ -1,6 +1,9 @@
 package com.example.splitbill.user.service;
 
+import com.example.splitbill.expense.repo.GroupBalancesRepo;
+import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.domain.User;
+import com.example.splitbill.user.dto.GetUserGroupsAndBalancesDto;
 import com.example.splitbill.user.dto.UserResponseDto;
 import com.example.splitbill.user.dto.UpdateUserDto;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
@@ -9,14 +12,16 @@ import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
+import java.util.*;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final GroupBalancesRepo groupBalancesRepo;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo) {
         this.userRepository = userRepository;
+        this.groupBalancesRepo = groupBalancesRepo;
     }
 
     public UserResponseDto createNewUser(User user) {
@@ -58,5 +63,37 @@ public class UserService {
                 .username(user.getUsername())
                 .id(user.getId())
                 .build();
+    }
+
+    public List<GetUserGroupsAndBalancesDto> getUserGroupsAndBalances(Long userId) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
+
+        var userGroups = user.getUserGroups();
+        var result = new ArrayList<GetUserGroupsAndBalancesDto>();
+        for(UserGroup userGroup : userGroups) {
+            var balances = findBalancesForGroup(userGroup);
+            var userGroupAndBalance = GetUserGroupsAndBalancesDto.builder()
+                    .balances(balances)
+                    .groupId(userGroup.getGroup().getId())
+                    .groupName(userGroup.getGroup().getGroupName())
+                    .build();
+            result.add(userGroupAndBalance);
+        }
+        return result;
+    }
+
+    private Map<Long, Double> findBalancesForGroup(UserGroup userGroup) {
+        var groupId = userGroup.getGroup().getId();
+        var userId = userGroup.getUser().getId();
+        Long id;
+        var balances = groupBalancesRepo.findByGroupIdAndUserId1(groupId, userId);
+        balances.addAll(groupBalancesRepo.findByGroupIdAndUserId2(groupId, userId));
+        var result = new HashMap<Long, Double>();
+        for(var balance : balances) {
+            id = userId.equals(balance.getUserId1()) ? balance.getUserId2() : balance.getUserId1();
+            result.put(id, balance.getBalance());
+        }
+        return result;
     }
 }
