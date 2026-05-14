@@ -1,12 +1,15 @@
 package com.example.splitbill.expense.domain;
 
 import com.example.splitbill.expense.dto.SplitStrategy;
+import com.example.splitbill.group.domain.Group;
+import com.example.splitbill.user.domain.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -20,10 +23,19 @@ public class Expense {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long groupId;
-    private Long userId;
-    private Long paidBy;
-    private Double billAmount;
+    @ManyToOne
+    @JoinColumn(name="group_id")
+    private Group group;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="added_by")
+    private User addedByUser;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="paid_by")
+    private User paidByUser;
+
+    private BigDecimal billAmount;
     private LocalDate addedAt;
     private String expense;
     private SplitStrategy splitStrategy;

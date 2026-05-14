@@ -3,6 +3,7 @@ package com.example.splitbill.group.controller;
 import com.example.splitbill.group.dto.adduser.AddUserToGroupDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupRequestDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupResponseDto;
+import com.example.splitbill.group.dto.creategroup.UpdateGroupRequestDto;
 import com.example.splitbill.group.dto.removeuser.RemoveUserFromGroupDto;
 import com.example.splitbill.group.service.GroupService;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,11 @@ public class GroupController {
     @PostMapping("/create")
     public CreateGroupResponseDto createGroup(@RequestBody CreateGroupRequestDto createGroupDto) {
         return groupService.createGroup(createGroupDto);
+    }
+
+    @PostMapping("/update")
+    public UpdateGroupRequestDto updateGroup(@RequestBody UpdateGroupRequestDto updateGroupRequestDto) {
+        return groupService.updateGroup(updateGroupRequestDto);
     }
 
     @PostMapping("/add-user")

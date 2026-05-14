@@ -2,6 +2,7 @@ package com.example.splitbill.group.service;
 
 import com.example.splitbill.group.dto.creategroup.CreateGroupRequestDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupResponseDto;
+import com.example.splitbill.group.dto.creategroup.UpdateGroupRequestDto;
 import com.example.splitbill.group.dto.removeuser.RemoveUserFromGroupDto;
 import com.example.splitbill.group.repo.UserGroupRepository;
 import com.example.splitbill.group.dto.adduser.AddUserToGroupDto;
@@ -18,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Objects;
 
 @Slf4j
 @Service
@@ -62,7 +64,7 @@ public class GroupService {
 
     public AddUserToGroupDto addUserToGroup(AddUserToGroupDto addUserToGroupDto) {
         var group = groupRepository.findGroupById(addUserToGroupDto.getGroupId())
-                .orElseThrow(() ->new GroupDoesNotExistsException("Invalid Group"));
+                .orElseThrow(() -> new GroupDoesNotExistsException("Invalid Group"));
 
         var users = addUserToGroupDto.getUserId()
                 .stream().map(id -> userRepository.findUserById(id)
@@ -92,5 +94,16 @@ public class GroupService {
         userGroup.getUser().getUserGroups().remove(removeUserFromGroupDto.getGroupId());
         userGroup.getGroup().getUsers().remove(removeUserFromGroupDto.getUserId());
         userGroupRepository.delete(userGroup);
+    }
+
+    @Transactional
+    public UpdateGroupRequestDto updateGroup(UpdateGroupRequestDto updateGroupRequestDto) {
+        var group = groupRepository.findGroupById(updateGroupRequestDto.getGroupId())
+                .orElseThrow(() -> new GroupDoesNotExistsException("Group doesn't exists"));
+
+        if (Objects.nonNull(updateGroupRequestDto.getGroupDescription())) {
+            group.setGroupDescription(updateGroupRequestDto.getGroupDescription());
+        }
+        return updateGroupRequestDto;
     }
 }

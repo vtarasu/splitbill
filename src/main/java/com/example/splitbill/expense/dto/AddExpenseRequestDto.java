@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 
@@ -16,9 +17,9 @@ public class AddExpenseRequestDto {
     private String expenseName;
     private Long paidByUsers;
     private Long groupId;
-    private Map<Long, Double> usersSharingExpense;
+    private Map<Long, BigDecimal> usersSharingExpense;
     private Long addedByUser;
-    private Double amount;
+    private BigDecimal amount;
     private SplitStrategy splitStrategy;
     private LocalDate expenseDate;
 }

@@ -29,7 +29,7 @@ public class User {
     private String emailId;
     private String mobileNumber;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<UserGroup> userGroups;
 
     @CreationTimestamp

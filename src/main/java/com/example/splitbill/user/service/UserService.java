@@ -12,6 +12,7 @@ import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -83,17 +84,23 @@ public class UserService {
         return result;
     }
 
-    private Map<Long, Double> findBalancesForGroup(UserGroup userGroup) {
+    private Map<String, BigDecimal> findBalancesForGroup(UserGroup userGroup) {
         var groupId = userGroup.getGroup().getId();
         var userId = userGroup.getUser().getId();
-        Long id;
         var balances = groupBalancesRepo.findByGroupIdAndUserId1(groupId, userId);
         balances.addAll(groupBalancesRepo.findByGroupIdAndUserId2(groupId, userId));
-        var result = new HashMap<Long, Double>();
+        var result = new HashMap<String, BigDecimal>();
         for(var balance : balances) {
-            id = userId.equals(balance.getUserId1()) ? balance.getUserId2() : balance.getUserId1();
-            result.put(id, balance.getBalance());
+            var user = userId.equals(balance.getUserId1().getId()) ? balance.getUserId2() : balance.getUserId1();
+            result.put(user.getUsername(), balance.getBalance());
         }
         return result;
+    }
+
+    public List<GetUserGroupsAndBalancesDto> getAllOpenBalances(Long userId) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
+//        var balances = findBalancesForGroup(userGroup);
+        return new ArrayList<>();
     }
 }

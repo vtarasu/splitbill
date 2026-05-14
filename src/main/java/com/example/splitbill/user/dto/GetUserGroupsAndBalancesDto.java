@@ -3,6 +3,7 @@ package com.example.splitbill.user.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Builder
@@ -10,5 +11,5 @@ import java.util.Map;
 public class GetUserGroupsAndBalancesDto {
     private String groupName;
     private Long groupId;
-    private Map<Long, Double> balances;
+    private Map<String, BigDecimal> balances;
 }
