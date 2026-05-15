@@ -7,6 +7,7 @@ import com.example.splitbill.expense.dto.AddExpenseRequestDto;
 import com.example.splitbill.expense.dto.GetExpensesRequestDto;
 import com.example.splitbill.expense.dto.GetExpensesResponseDto;
 import com.example.splitbill.expense.dto.SplitStrategy;
+import com.example.splitbill.expense.exception.ExpenseDoesNotExistsException;
 import com.example.splitbill.expense.repo.ExpenseRepo;
 import com.example.splitbill.expense.service.strategy.ExpenseSplitStrategy;
 import com.example.splitbill.group.exception.GroupDoesNotExistsException;
@@ -85,10 +86,20 @@ public class ExpenseService {
         return groupBalances;
     }
 
+    @Transactional
     public List<GetExpensesResponseDto> getExpenses(GetExpensesRequestDto getExpensesRequestDto) {
         var pageable = PageRequest.of(getExpensesRequestDto.getPageNo(), getExpensesRequestDto.getPageSize(),
                 Sort.by("addedAt").descending());
         var expenses = expenseRepo.findAllByGroupId(getExpensesRequestDto.getGroupId(), pageable);
         return expenses.stream().map(GetExpensesResponseDto::from).toList();
+    }
+
+    public List<GroupBalances> deleteExpense(long id) {
+        var expense = expenseRepo.findById(id).orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid expense"));
+        var splits = expense.getSplit();
+        expenseRepo.delete(expense);
+        var groupBalances = groupBalanceService.reverseBalances(expense.getGroup(), splits);
+        log.info("Expense deleted successfully and group balances updated. expense={}", expense.getId());
+        return groupBalances;
     }
 }

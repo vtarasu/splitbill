@@ -24,7 +24,7 @@ public class ExpenseSplit {
     private Long owedBy;
     private BigDecimal amount;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "expense_id")
     private Expense expense;
 }

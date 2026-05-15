@@ -47,4 +47,9 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
         });
         return groupBalancesRepo.findByGroupId(group.getId());
     }
+
+    @Override
+    public List<GroupBalances> reverseBalances(Group group, List<ExpenseSplit> expenseSplit) {
+        return groupBalancesRepo.findByGroupId(group.getId());
+    }
 }

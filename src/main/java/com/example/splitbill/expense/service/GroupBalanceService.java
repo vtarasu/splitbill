@@ -10,4 +10,6 @@ import java.util.Map;
 
 public interface GroupBalanceService {
     List<GroupBalances> updateGroupBalance(Group group, Map<Long, User> users, List<ExpenseSplit> splits);
+
+    List<GroupBalances> reverseBalances(Group group, List<ExpenseSplit> splits);
 }

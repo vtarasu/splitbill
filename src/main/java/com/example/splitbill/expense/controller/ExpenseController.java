@@ -31,6 +31,14 @@ public class ExpenseController {
         return groupBalances;
     }
 
+    @PostMapping("/delete/{id}")
+    public List<GroupBalances> deleteExpense(@PathVariable long id) {
+        log.info("Received request to delete expense id. id={}", id);
+        var groupBalances = expenseService.deleteExpense(id);
+        log.info("Expense deleted successfully. newBalances={}", groupBalances);
+        return groupBalances;
+    }
+
     @GetMapping
     public List<GetExpensesResponseDto> getExpenses(@RequestBody GetExpensesRequestDto getExpensesRequestDto) {
         log.info("Received request to get expenses for group. request={}", getExpensesRequestDto);
