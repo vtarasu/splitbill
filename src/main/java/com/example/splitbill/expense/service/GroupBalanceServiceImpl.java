@@ -4,12 +4,11 @@ import com.example.splitbill.expense.domain.ExpenseSplit;
 import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.domain.Group;
-import com.example.splitbill.user.domain.User;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class GroupBalanceServiceImpl implements GroupBalanceService {
@@ -45,8 +44,11 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
                     newBalance.setBalance(split.getAmount());
                 }
             }
-            groupBalancesRepo.save(newBalance);
-
+            if (newBalance.getBalance().compareTo(BigDecimal.ZERO) == 0 && existingBalance.isPresent()) {
+                groupBalancesRepo.deleteById(existingBalance.get().getId());
+            } else {
+                groupBalancesRepo.save(newBalance);
+            }
         });
         return groupBalancesRepo.findByGroupId(group.getId());
     }
@@ -69,7 +71,8 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
                 var balance = existingBalance.get();
                 balance.setBalance(balance.getBalance().add(split.getAmount()));
             }
-        };
+        }
+        ;
         return groupBalancesRepo.findByGroupId(group.getId());
     }
 

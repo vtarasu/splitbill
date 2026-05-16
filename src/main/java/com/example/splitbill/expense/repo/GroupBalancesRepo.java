@@ -13,7 +13,5 @@ public interface GroupBalancesRepo extends JpaRepository<GroupBalances, Long> {
 
     List<GroupBalances> findByGroupId(Long groupId);
 
-    List<GroupBalances> findByGroupIdAndFromId(Long groupId, Long userId);
-
-    List<GroupBalances> findByGroupIdAndToId(Long groupId, Long userId);
+    List<GroupBalances> findByFromIdOrToId(Long fromId, Long toId);
 }

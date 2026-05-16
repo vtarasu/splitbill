@@ -1,11 +1,10 @@
 package com.example.splitbill.user.service;
 
+import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.domain.User;
-import com.example.splitbill.user.dto.GetUserGroupsAndBalancesDto;
-import com.example.splitbill.user.dto.UserResponseDto;
-import com.example.splitbill.user.dto.UpdateUserDto;
+import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.UserRepository;
@@ -14,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -72,7 +72,7 @@ public class UserService {
 
         var userGroups = user.getUserGroups();
         var result = new ArrayList<GetUserGroupsAndBalancesDto>();
-        for(UserGroup userGroup : userGroups) {
+        for (UserGroup userGroup : userGroups) {
             var balances = findBalancesForGroup(userGroup);
             var userGroupAndBalance = GetUserGroupsAndBalancesDto.builder()
                     .balances(balances)
@@ -84,23 +84,36 @@ public class UserService {
         return result;
     }
 
-    private Map<String, BigDecimal> findBalancesForGroup(UserGroup userGroup) {
+    private Map<OwesDto, BigDecimal> findBalancesForGroup(UserGroup userGroup) {
         var groupId = userGroup.getGroup().getId();
-        var userId = userGroup.getUser().getId();
-        var balances = groupBalancesRepo.findByGroupIdAndFromId(groupId, userId);
-        balances.addAll(groupBalancesRepo.findByGroupIdAndToId(groupId, userId));
-        var result = new HashMap<String, BigDecimal>();
-        for(var balance : balances) {
-            var user = userId.equals(balance.getFrom().getId()) ? balance.getTo() : balance.getFrom();
-            result.put(user.getUsername(), balance.getBalance());
+        var balances = groupBalancesRepo.findByGroupId(groupId);
+        var result = new HashMap<OwesDto, BigDecimal>();
+        for (var balance : balances) {
+            result.put(new OwesDto(balance.getFrom().getUsername(), balance.getTo().getUsername()),
+                    balance.getBalance());
         }
         return result;
     }
 
-    public List<GetUserGroupsAndBalancesDto> getAllOpenBalances(Long userId) {
-        var user = userRepository.findUserById(userId)
-                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
-//        var balances = findBalancesForGroup(userGroup);
-        return new ArrayList<>();
+    public Map<UserDto, BigDecimal> getAllOpenBalances(Long userId) {
+        var groupBalances = groupBalancesRepo.findByFromIdOrToId(userId, userId);
+        var allBalances = new HashMap<Long, BigDecimal>();
+        var userCache = new HashMap<Long, String>();
+        Long id;
+        for (var groupBalance : groupBalances) {
+            if (groupBalance.getFrom().getId().equals(userId)) {
+                id = groupBalance.getTo().getId();
+                allBalances.put(id, allBalances.getOrDefault(id, BigDecimal.ZERO).subtract(groupBalance.getBalance()));
+                userCache.put(id, groupBalance.getTo().getUsername());
+            } else {
+                id = groupBalance.getFrom().getId();
+                allBalances.put(id, allBalances.getOrDefault(id, BigDecimal.ZERO).add(groupBalance.getBalance()));
+                userCache.put(id, groupBalance.getFrom().getUsername());
+            }
+        }
+        return allBalances.entrySet().stream()
+                .collect(Collectors.toMap
+                        ( entry -> new UserDto(entry.getKey(), userCache.get(entry.getKey())),
+                                Map.Entry::getValue));
     }
 }

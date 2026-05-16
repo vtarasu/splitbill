@@ -11,5 +11,5 @@ import java.util.Map;
 public class GetUserGroupsAndBalancesDto {
     private String groupName;
     private Long groupId;
-    private Map<String, BigDecimal> balances;
+    private Map<OwesDto, BigDecimal> balances;
 }

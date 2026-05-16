@@ -1,16 +1,14 @@
 package com.example.splitbill.user.controller;
 
-import com.example.splitbill.user.dto.GetUserGroupsAndBalancesDto;
-import com.example.splitbill.user.dto.UpdateUserDto;
+import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.service.UserService;
 import com.example.splitbill.user.domain.User;
-import com.example.splitbill.user.dto.CreateUserRequestDto;
-import com.example.splitbill.user.dto.UserResponseDto;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -33,14 +31,14 @@ public class UserController {
         return userService.updateUser(updateUserDto);
     }
 
-    @GetMapping("/fetch/groups/{userId}")
+    @GetMapping("/groups/{userId}")
     public List<GetUserGroupsAndBalancesDto> getUserGroups(@PathVariable Long userId) {
         log.info("Received request to fetch groups for user={}", userId);
         return userService.getUserGroupsAndBalances(userId);
     }
 
-    @GetMapping("/fetch/balances/{userId}")
-    public List<GetUserGroupsAndBalancesDto> getAllBalances(@PathVariable Long userId) {
+    @GetMapping("/balances/{userId}")
+    public Map<UserDto, BigDecimal> getAllBalances(@PathVariable Long userId) {
         log.info("Received request to fetch all balances for user={}", userId);
         return userService.getAllOpenBalances(userId);
     }
