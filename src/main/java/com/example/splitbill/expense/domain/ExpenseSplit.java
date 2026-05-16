@@ -1,6 +1,7 @@
 package com.example.splitbill.expense.domain;
 
 
+import com.example.splitbill.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -18,8 +19,14 @@ public class ExpenseSplit {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long paidBy;
-    private Long owedBy;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "paidBy")
+    private User paidBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owedBy")
+    private User owedBy;
+
     private BigDecimal amount;
 
     @ManyToOne(fetch = FetchType.LAZY)

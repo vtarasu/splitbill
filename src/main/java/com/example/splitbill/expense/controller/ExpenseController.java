@@ -44,10 +44,18 @@ public class ExpenseController {
         return expenseResponseDto;
     }
 
-    @GetMapping
-    public List<GetExpensesResponseDto> getExpenses(@RequestBody GetExpensesRequestDto getExpensesRequestDto) {
-        log.info("Received request to get expenses for group. request={}", getExpensesRequestDto);
-        var expenses = expenseService.getExpenses(getExpensesRequestDto);
+    @GetMapping("/{id}")
+    public ExpenseDetailsDto getExpense(@PathVariable Long id) {
+        log.info("Received request to fetch expense id. id={}", id);
+        var expenseDetailsDto = expenseService.getExpenseById(id);
+        log.info("Expense fetched successfully. id={}", expenseDetailsDto.getId());
+        return expenseDetailsDto;
+    }
+
+    @GetMapping("/group")
+    public List<ExpensesInGroupResponseDto> getExpensesInGroup(@RequestBody ExpensesInGroupRequestDto requestDto) {
+        log.info("Received request to get expenses for group. request={}", requestDto);
+        var expenses = expenseService.getExpensesInGroup(requestDto);
         log.info("Retrieved expenses successfully. expenses={}", expenses.size());
         return expenses;
     }

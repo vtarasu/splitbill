@@ -1,7 +1,6 @@
 package com.example.splitbill.expense.service;
 
 import com.example.splitbill.expense.domain.Expense;
-import com.example.splitbill.expense.domain.ExpenseSplit;
 import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.exception.ExpenseDoesNotExistsException;
@@ -17,10 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -57,8 +53,8 @@ public class ExpenseService {
                 ));
 
 
-        List<ExpenseSplit> splits = ExpenseSplitStrategy.getExpenseSplitStrategy(addExpenseRequestDto.getSplitStrategy())
-                .splitExpense(addExpenseRequestDto);
+        var splits = ExpenseSplitStrategy.getExpenseSplitStrategy(addExpenseRequestDto.getSplitStrategy())
+                .splitExpense(users, addExpenseRequestDto);
 
         log.info("Expense splits computed successfully for expenseId={}.", addExpenseRequestDto.getGroupId());
         var splitDetails = addExpenseRequestDto.getUsersSharingExpense().toString();
@@ -80,17 +76,17 @@ public class ExpenseService {
 
         splits.forEach(expenseSplit -> expenseSplit.setExpense(expense));
         var savedExpense = expenseRepo.save(expense);
-        var groupBalances = groupBalanceService.updateGroupBalance(group, users, splits);
+        var groupBalances = groupBalanceService.updateGroupBalance(group, splits);
         log.info("Expense saved successfully and group balances updated. savedExpense={}", savedExpense.getId());
         return ExpenseResponseDto.from(expense.getId(), groupBalances);
     }
 
     @Transactional
-    public List<GetExpensesResponseDto> getExpenses(GetExpensesRequestDto getExpensesRequestDto) {
+    public List<ExpensesInGroupResponseDto> getExpensesInGroup(ExpensesInGroupRequestDto getExpensesRequestDto) {
         var pageable = PageRequest.of(getExpensesRequestDto.getPageNo(), getExpensesRequestDto.getPageSize(),
-                Sort.by("addedAt").descending());
+                Sort.by("expenseDate").descending());
         var expenses = expenseRepo.findAllByGroupId(getExpensesRequestDto.getGroupId(), pageable);
-        return expenses.stream().map(GetExpensesResponseDto::from).toList();
+        return expenses.stream().map(ExpensesInGroupResponseDto::from).toList();
     }
 
     public ExpenseResponseDto deleteExpense(long id) {
@@ -130,5 +126,32 @@ public class ExpenseService {
                 !expenseRequestDto.getExpenseName().equals(expense.getExpense())) {
             expense.setExpense(expenseRequestDto.getExpenseName());
         }
+    }
+
+    public ExpenseDetailsDto getExpenseById(Long id) {
+        var expense = expenseRepo.findById(id)
+                .orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid Expense id."));
+
+        var splitDetails = expense.getSplit().stream()
+                .map(expenseSplit -> ExpenseSplitDto.builder()
+                        .fromId(expenseSplit.getOwedBy().getId())
+                        .fromUserName(expenseSplit.getOwedBy().getUsername())
+                        .toId(expenseSplit.getPaidBy().getId())
+                        .toUserName(expenseSplit.getPaidBy().getUsername())
+                        .amount(expenseSplit.getAmount())
+                        .build())
+                .toList();
+
+        return ExpenseDetailsDto.builder()
+                .id(id)
+                .expenseName(expense.getExpense())
+                .paidBy(expense.getPaidByUser().getUsername())
+                .addedBy(expense.getAddedByUser().getUsername())
+                .expenseDate(expense.getExpenseDate())
+                .billAmount(expense.getBillAmount())
+                .groupName(expense.getGroup().getGroupName())
+                .splitStrategy(expense.getSplitStrategy())
+                .expenseSplit(splitDetails)
+                .build();
     }
 }

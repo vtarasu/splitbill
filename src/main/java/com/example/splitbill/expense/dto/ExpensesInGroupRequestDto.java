@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class GetExpensesRequestDto {
+public class ExpensesInGroupRequestDto {
     private Long groupId;
     private int pageNo;
     private int pageSize;

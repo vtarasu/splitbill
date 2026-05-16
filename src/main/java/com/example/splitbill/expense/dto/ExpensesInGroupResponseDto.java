@@ -9,19 +9,21 @@ import java.time.LocalDate;
 
 @Data
 @Builder
-public class GetExpensesResponseDto {
+public class ExpensesInGroupResponseDto {
     private Long expenseId;
     private String description;
-    private String groupId;
+    private Long groupId;
+    private String groupName;
     private String paidBy;
     private String addedBy;
     private BigDecimal amount;
     private LocalDate addedAt;
 
-    public static GetExpensesResponseDto from(Expense expense) {
-        return GetExpensesResponseDto.builder()
+    public static ExpensesInGroupResponseDto from(Expense expense) {
+        return ExpensesInGroupResponseDto.builder()
                 .expenseId(expense.getId())
-                .groupId(expense.getGroup().getGroupName())
+                .groupId(expense.getGroup().getId())
+                .groupName(expense.getGroup().getGroupName())
                 .description(expense.getExpense())
                 .paidBy(expense.getPaidByUser().getUsername())
                 .addedBy(expense.getAddedByUser().getUsername())

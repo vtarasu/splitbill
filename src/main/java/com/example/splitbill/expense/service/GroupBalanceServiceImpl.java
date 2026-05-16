@@ -20,14 +20,14 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
     }
 
     @Override
-    public List<GroupBalances> updateGroupBalance(Group group, Map<Long, User> users, List<ExpenseSplit> expenseSplit) {
+    public List<GroupBalances> updateGroupBalance(Group group, List<ExpenseSplit> expenseSplit) {
         expenseSplit.forEach(split -> {
             if (split.getOwedBy().equals(split.getPaidBy())) {
                 return;
             }
             var newBalance = new GroupBalances();
-            var owedBy = split.getOwedBy();
-            var paidBy = split.getPaidBy();
+            var owedBy = split.getOwedBy().getId();
+            var paidBy = split.getPaidBy().getId();
             var existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(), owedBy, paidBy);
             if (existingBalance.isPresent()) {
                 newBalance = existingBalance.get();
@@ -40,8 +40,8 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
                     newBalance.setBalance(existingBalance.get().getBalance().subtract(split.getAmount()));
                 } else {
                     newBalance.setGroup(group);
-                    newBalance.setFrom(users.get(split.getOwedBy()));
-                    newBalance.setTo(users.get(split.getPaidBy()));
+                    newBalance.setFrom(split.getOwedBy());
+                    newBalance.setTo(split.getPaidBy());
                     newBalance.setBalance(split.getAmount());
                 }
             }
@@ -59,13 +59,13 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
                 continue;
             }
             var existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(),
-                    split.getOwedBy(), split.getPaidBy());
+                    split.getOwedBy().getId(), split.getPaidBy().getId());
             if (existingBalance.isPresent()) {
                 var balance = existingBalance.get();
                 balance.setBalance(balance.getBalance().subtract(split.getAmount()));
             } else {
                 existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(),
-                        split.getPaidBy(), split.getOwedBy());
+                        split.getPaidBy().getId(), split.getOwedBy().getId());
                 var balance = existingBalance.get();
                 balance.setBalance(balance.getBalance().add(split.getAmount()));
             }

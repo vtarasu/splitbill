@@ -5,9 +5,11 @@ import com.example.splitbill.group.domain.Group;
 import com.example.splitbill.user.domain.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @NoArgsConstructor
@@ -38,6 +40,9 @@ public class Expense {
     private String expense;
     private SplitStrategy splitStrategy;
     private String splitDetails;
+
+    @CreationTimestamp
+    private LocalDateTime dateAddedAt;
 
     @OneToMany(mappedBy = "expense", cascade = CascadeType.ALL)
     private List<ExpenseSplit> split;
