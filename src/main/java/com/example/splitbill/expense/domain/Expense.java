@@ -4,10 +4,7 @@ import com.example.splitbill.expense.dto.SplitStrategy;
 import com.example.splitbill.group.domain.Group;
 import com.example.splitbill.user.domain.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,7 +13,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Data
+@Getter
+@Setter
 @Entity
 public class Expense {
     @Id
@@ -36,7 +34,7 @@ public class Expense {
     private User paidByUser;
 
     private BigDecimal billAmount;
-    private LocalDate addedAt;
+    private LocalDate expenseDate;
     private String expense;
     private SplitStrategy splitStrategy;
     private String splitDetails;

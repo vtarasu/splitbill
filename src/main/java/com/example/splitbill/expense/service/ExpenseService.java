@@ -3,10 +3,7 @@ package com.example.splitbill.expense.service;
 import com.example.splitbill.expense.domain.Expense;
 import com.example.splitbill.expense.domain.ExpenseSplit;
 import com.example.splitbill.expense.domain.GroupBalances;
-import com.example.splitbill.expense.dto.AddExpenseRequestDto;
-import com.example.splitbill.expense.dto.GetExpensesRequestDto;
-import com.example.splitbill.expense.dto.GetExpensesResponseDto;
-import com.example.splitbill.expense.dto.SplitStrategy;
+import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.exception.ExpenseDoesNotExistsException;
 import com.example.splitbill.expense.repo.ExpenseRepo;
 import com.example.splitbill.expense.service.strategy.ExpenseSplitStrategy;
@@ -20,8 +17,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -40,7 +39,7 @@ public class ExpenseService {
     }
 
     @Transactional
-    public List<GroupBalances> addExpense(AddExpenseRequestDto addExpenseRequestDto) {
+    public ExpenseResponseDto addExpense(AddExpenseRequestDto addExpenseRequestDto) {
         var group = groupRepository.findGroupById(addExpenseRequestDto.getGroupId())
                 .orElseThrow(() -> new GroupDoesNotExistsException("Invalid group id received"));
 
@@ -72,7 +71,7 @@ public class ExpenseService {
                 .addedByUser(addedByUser)
                 .paidByUser(paidByUser)
                 .group(group)
-                .addedAt(addExpenseRequestDto.getExpenseDate())
+                .expenseDate(addExpenseRequestDto.getExpenseDate())
                 .billAmount(addExpenseRequestDto.getAmount())
                 .splitStrategy(addExpenseRequestDto.getSplitStrategy())
                 .split(splits)
@@ -83,7 +82,7 @@ public class ExpenseService {
         var savedExpense = expenseRepo.save(expense);
         var groupBalances = groupBalanceService.updateGroupBalance(group, users, splits);
         log.info("Expense saved successfully and group balances updated. savedExpense={}", savedExpense.getId());
-        return groupBalances;
+        return ExpenseResponseDto.from(expense.getId(), groupBalances);
     }
 
     @Transactional
@@ -94,12 +93,42 @@ public class ExpenseService {
         return expenses.stream().map(GetExpensesResponseDto::from).toList();
     }
 
-    public List<GroupBalances> deleteExpense(long id) {
+    public ExpenseResponseDto deleteExpense(long id) {
         var expense = expenseRepo.findById(id).orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid expense"));
         var splits = expense.getSplit();
         expenseRepo.delete(expense);
         var groupBalances = groupBalanceService.reverseBalances(expense.getGroup(), splits);
         log.info("Expense deleted successfully and group balances updated. expense={}", expense.getId());
-        return groupBalances;
+        return ExpenseResponseDto.from(id, groupBalances);
+    }
+
+    @Transactional
+    public ExpenseResponseDto updateExpense(UpdateExpenseRequestDto expenseRequestDto) {
+        var expense = expenseRepo.findById(expenseRequestDto.getId())
+                .orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid expense id."));
+        List<GroupBalances> groupBalances = new ArrayList<>();
+        if (!expenseRequestDto.isAmountUpdateRequire()) {
+            updateExpenseMetaData(expense, expenseRequestDto);
+            groupBalances = groupBalanceService.findBalanceForGroupId(expense.getGroup().getId());
+            return ExpenseResponseDto.from(expense.getId(), groupBalances);
+        } else {
+            var addExpenseDto = AddExpenseRequestDto.from(expense, expenseRequestDto);
+            deleteExpense(expense.getId());
+            log.info("Existing expense deleted successfully. id={}", expense.getId());
+            return addExpense(addExpenseDto);
+        }
+    }
+
+    @Transactional
+    private void updateExpenseMetaData(Expense expense, UpdateExpenseRequestDto expenseRequestDto) {
+        if (Objects.nonNull(expenseRequestDto.getExpenseDate()) &&
+                !expenseRequestDto.getExpenseDate().isEqual(expenseRequestDto.getExpenseDate())) {
+            expense.setExpenseDate(expenseRequestDto.getExpenseDate());
+        }
+
+        if (Objects.nonNull(expenseRequestDto.getExpenseName()) &&
+                !expenseRequestDto.getExpenseName().equals(expense.getExpense())) {
+            expense.setExpense(expenseRequestDto.getExpenseName());
+        }
     }
 }

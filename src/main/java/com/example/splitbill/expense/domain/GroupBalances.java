@@ -3,10 +3,7 @@ package com.example.splitbill.expense.domain;
 import com.example.splitbill.group.domain.Group;
 import com.example.splitbill.user.domain.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 
@@ -14,7 +11,8 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 @Entity
-@Data
+@Getter
+@Setter
 public class GroupBalances {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,15 +20,15 @@ public class GroupBalances {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "groupId")
-    private Group groupId;
+    private Group group;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "userId1")
-    private User userId1;
+    @JoinColumn(name = "fromId")
+    private User from;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "userId2")
-    private User userId2;
+    @JoinColumn(name = "toId")
+    private User to;
 
     private BigDecimal balance;
 }

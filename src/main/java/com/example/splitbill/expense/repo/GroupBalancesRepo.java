@@ -9,11 +9,11 @@ import java.util.Optional;
 
 @Repository
 public interface GroupBalancesRepo extends JpaRepository<GroupBalances, Long> {
-    Optional<GroupBalances> findByUserId1AndUserId2(Long userId1, Long userId2);
+    Optional<GroupBalances> findByGroupIdAndFromIdAndToId(Long groupId, Long fromId, Long toId);
 
     List<GroupBalances> findByGroupId(Long groupId);
 
-    List<GroupBalances> findByGroupIdAndUserId1(Long groupId, Long userId);
+    List<GroupBalances> findByGroupIdAndFromId(Long groupId, Long userId);
 
-    List<GroupBalances> findByGroupIdAndUserId2(Long groupId, Long userId);
+    List<GroupBalances> findByGroupIdAndToId(Long groupId, Long userId);
 }

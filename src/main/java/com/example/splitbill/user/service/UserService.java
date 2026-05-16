@@ -87,11 +87,11 @@ public class UserService {
     private Map<String, BigDecimal> findBalancesForGroup(UserGroup userGroup) {
         var groupId = userGroup.getGroup().getId();
         var userId = userGroup.getUser().getId();
-        var balances = groupBalancesRepo.findByGroupIdAndUserId1(groupId, userId);
-        balances.addAll(groupBalancesRepo.findByGroupIdAndUserId2(groupId, userId));
+        var balances = groupBalancesRepo.findByGroupIdAndFromId(groupId, userId);
+        balances.addAll(groupBalancesRepo.findByGroupIdAndToId(groupId, userId));
         var result = new HashMap<String, BigDecimal>();
         for(var balance : balances) {
-            var user = userId.equals(balance.getUserId1().getId()) ? balance.getUserId2() : balance.getUserId1();
+            var user = userId.equals(balance.getFrom().getId()) ? balance.getTo() : balance.getFrom();
             result.put(user.getUsername(), balance.getBalance());
         }
         return result;

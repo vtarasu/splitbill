@@ -5,6 +5,7 @@ import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.domain.Group;
 import com.example.splitbill.user.domain.User;
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -25,20 +26,22 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
                 return;
             }
             var newBalance = new GroupBalances();
-            var existingBalance = groupBalancesRepo.findByUserId1AndUserId2(split.getOwedBy(), split.getPaidBy());
+            var owedBy = split.getOwedBy();
+            var paidBy = split.getPaidBy();
+            var existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(), owedBy, paidBy);
             if (existingBalance.isPresent()) {
                 newBalance = existingBalance.get();
                 newBalance.setBalance(split.getAmount().add(existingBalance.get().getBalance()));
                 groupBalancesRepo.save(newBalance);
             } else {
-                existingBalance = groupBalancesRepo.findByUserId1AndUserId2(split.getPaidBy(), split.getOwedBy());
+                existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(), paidBy, owedBy);
                 if (existingBalance.isPresent()) {
                     newBalance = existingBalance.get();
                     newBalance.setBalance(existingBalance.get().getBalance().subtract(split.getAmount()));
                 } else {
-                    newBalance.setGroupId(group);
-                    newBalance.setUserId1(users.get(split.getOwedBy()));
-                    newBalance.setUserId2(users.get(split.getPaidBy()));
+                    newBalance.setGroup(group);
+                    newBalance.setFrom(users.get(split.getOwedBy()));
+                    newBalance.setTo(users.get(split.getPaidBy()));
                     newBalance.setBalance(split.getAmount());
                 }
             }
@@ -48,8 +51,30 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
         return groupBalancesRepo.findByGroupId(group.getId());
     }
 
+    @Transactional
     @Override
     public List<GroupBalances> reverseBalances(Group group, List<ExpenseSplit> expenseSplit) {
+        for (ExpenseSplit split : expenseSplit) {
+            if (split.getOwedBy().equals(split.getPaidBy())) {
+                continue;
+            }
+            var existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(),
+                    split.getOwedBy(), split.getPaidBy());
+            if (existingBalance.isPresent()) {
+                var balance = existingBalance.get();
+                balance.setBalance(balance.getBalance().subtract(split.getAmount()));
+            } else {
+                existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(),
+                        split.getPaidBy(), split.getOwedBy());
+                var balance = existingBalance.get();
+                balance.setBalance(balance.getBalance().add(split.getAmount()));
+            }
+        };
         return groupBalancesRepo.findByGroupId(group.getId());
+    }
+
+    @Override
+    public List<GroupBalances> findBalanceForGroupId(Long groupId) {
+        return groupBalancesRepo.findByGroupId(groupId);
     }
 }

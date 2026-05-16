@@ -26,7 +26,7 @@ public class GetExpensesResponseDto {
                 .paidBy(expense.getPaidByUser().getUsername())
                 .addedBy(expense.getAddedByUser().getUsername())
                 .amount(expense.getBillAmount())
-                .addedAt(expense.getAddedAt())
+                .addedAt(expense.getExpenseDate())
                 .build();
     }
 }

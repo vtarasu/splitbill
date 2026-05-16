@@ -1,9 +1,6 @@
 package com.example.splitbill.expense.controller;
 
-import com.example.splitbill.expense.domain.GroupBalances;
-import com.example.splitbill.expense.dto.AddExpenseRequestDto;
-import com.example.splitbill.expense.dto.GetExpensesRequestDto;
-import com.example.splitbill.expense.dto.GetExpensesResponseDto;
+import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.service.ExpenseService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -22,21 +19,29 @@ public class ExpenseController {
 
 
     @PostMapping("/add")
-    public List<GroupBalances> addExpense(@RequestBody AddExpenseRequestDto addExpenseRequestDto) {
+    public ExpenseResponseDto addExpense(@RequestBody AddExpenseRequestDto addExpenseRequestDto) {
         log.info("Received request to add expense for group. groupId={} expensePaidBy={} expenseSplit={}",
                 addExpenseRequestDto.getGroupId(), addExpenseRequestDto.getPaidByUsers(),
                 addExpenseRequestDto.getUsersSharingExpense());
-        var groupBalances = expenseService.addExpense(addExpenseRequestDto);
-        log.info("Expense added successfully. newBalances={}", groupBalances);
-        return groupBalances;
+        var addExpenseResponseDto = expenseService.addExpense(addExpenseRequestDto);
+        log.info("Expense added successfully. response={}", addExpenseResponseDto);
+        return addExpenseResponseDto;
     }
 
     @PostMapping("/delete/{id}")
-    public List<GroupBalances> deleteExpense(@PathVariable long id) {
+    public ExpenseResponseDto deleteExpense(@PathVariable long id) {
         log.info("Received request to delete expense id. id={}", id);
-        var groupBalances = expenseService.deleteExpense(id);
-        log.info("Expense deleted successfully. newBalances={}", groupBalances);
-        return groupBalances;
+        var expenseResponseDto = expenseService.deleteExpense(id);
+        log.info("Expense deleted successfully. id={}", id);
+        return expenseResponseDto;
+    }
+
+    @PostMapping("/update")
+    public ExpenseResponseDto updateExpense(@RequestBody UpdateExpenseRequestDto expenseRequestDto) {
+        log.info("Received request to update expense id. id={}", expenseRequestDto.getId());
+        var expenseResponseDto = expenseService.updateExpense(expenseRequestDto);
+        log.info("Expense updated successfully. id={}", expenseResponseDto.getId());
+        return expenseResponseDto;
     }
 
     @GetMapping
