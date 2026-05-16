@@ -1,6 +1,5 @@
 package com.example.splitbill.user.service;
 
-import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.domain.User;
