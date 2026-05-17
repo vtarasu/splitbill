@@ -35,19 +35,29 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
             } else {
                 existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(), paidBy, owedBy);
                 if (existingBalance.isPresent()) {
-                    newBalance = existingBalance.get();
-                    newBalance.setBalance(existingBalance.get().getBalance().subtract(split.getAmount()));
+                    var netBalance = existingBalance.get().getBalance().subtract(split.getAmount());
+                    if (netBalance.compareTo(BigDecimal.ZERO) == 0) {
+                        groupBalancesRepo.deleteById(existingBalance.get().getId());
+                    } else if (netBalance.compareTo(BigDecimal.ZERO) < 0) {
+                        newBalance = new GroupBalances();
+                        newBalance.setFrom(split.getOwedBy());
+                        newBalance.setTo(split.getPaidBy());
+                        newBalance.setBalance(netBalance.abs());
+                        newBalance.setGroup(group);
+                        groupBalancesRepo.deleteById(existingBalance.get().getId());
+                        groupBalancesRepo.save(newBalance);
+                    } else {
+                        newBalance = existingBalance.get();
+                        newBalance.setBalance(netBalance);
+                        groupBalancesRepo.save(newBalance);
+                    }
                 } else {
                     newBalance.setGroup(group);
                     newBalance.setFrom(split.getOwedBy());
                     newBalance.setTo(split.getPaidBy());
                     newBalance.setBalance(split.getAmount());
+                    groupBalancesRepo.save(newBalance);
                 }
-            }
-            if (newBalance.getBalance().compareTo(BigDecimal.ZERO) == 0 && existingBalance.isPresent()) {
-                groupBalancesRepo.deleteById(existingBalance.get().getId());
-            } else {
-                groupBalancesRepo.save(newBalance);
             }
         });
         return groupBalancesRepo.findByGroupId(group.getId());
@@ -63,16 +73,39 @@ public class GroupBalanceServiceImpl implements GroupBalanceService {
             var existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(),
                     split.getOwedBy().getId(), split.getPaidBy().getId());
             if (existingBalance.isPresent()) {
-                var balance = existingBalance.get();
-                balance.setBalance(balance.getBalance().subtract(split.getAmount()));
+                var netBalance = existingBalance.get().getBalance().subtract(split.getAmount());
+                if (netBalance.compareTo(BigDecimal.ZERO) < 0) {
+                    var balance = new GroupBalances();
+                    balance.setFrom(split.getPaidBy());
+                    balance.setTo(split.getOwedBy());
+                    balance.setBalance(netBalance.abs());
+                    balance.setGroup(group);
+                    groupBalancesRepo.deleteById(existingBalance.get().getId());
+                    groupBalancesRepo.save(balance);
+                } else if(netBalance.compareTo(BigDecimal.ZERO) == 0) {
+                    groupBalancesRepo.deleteById(existingBalance.get().getId());
+                } else {
+                    var newBalance = existingBalance.get();
+                    newBalance.setBalance(netBalance);
+                    groupBalancesRepo.save(newBalance);
+                }
             } else {
                 existingBalance = groupBalancesRepo.findByGroupIdAndFromIdAndToId(group.getId(),
                         split.getPaidBy().getId(), split.getOwedBy().getId());
-                var balance = existingBalance.get();
-                balance.setBalance(balance.getBalance().add(split.getAmount()));
+                if (existingBalance.isPresent()) {
+                    var newGroupBalance = existingBalance.get();
+                    newGroupBalance.setBalance(newGroupBalance.getBalance().add(split.getAmount()));
+                    groupBalancesRepo.save(newGroupBalance);
+                } else {
+                    var newBalance = new GroupBalances();
+                    newBalance.setGroup(group);
+                    newBalance.setFrom(split.getPaidBy());
+                    newBalance.setTo(split.getOwedBy());
+                    newBalance.setBalance(split.getAmount());
+                    groupBalancesRepo.save(newBalance);
+                }
             }
         }
-        ;
         return groupBalancesRepo.findByGroupId(group.getId());
     }
 
