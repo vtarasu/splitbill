@@ -52,6 +52,8 @@ public class ExpenseService {
                                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"))
                 ));
 
+        users.put(paidByUser.getId(), paidByUser);
+        users.put(addedByUser.getId(), addedByUser);
 
         var splits = ExpenseSplitStrategy.getExpenseSplitStrategy(addExpenseRequestDto.getSplitStrategy())
                 .splitExpense(users, addExpenseRequestDto);

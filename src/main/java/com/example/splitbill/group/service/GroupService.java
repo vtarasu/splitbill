@@ -1,9 +1,11 @@
 package com.example.splitbill.group.service;
 
+import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.dto.creategroup.CreateGroupRequestDto;
 import com.example.splitbill.group.dto.creategroup.CreateGroupResponseDto;
 import com.example.splitbill.group.dto.creategroup.UpdateGroupRequestDto;
 import com.example.splitbill.group.dto.removeuser.RemoveUserFromGroupDto;
+import com.example.splitbill.group.exception.CannotRemoveUserException;
 import com.example.splitbill.group.repo.UserGroupRepository;
 import com.example.splitbill.group.dto.adduser.AddUserToGroupDto;
 import com.example.splitbill.group.domain.Group;
@@ -27,12 +29,14 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final UserGroupRepository userGroupRepository;
+    private final GroupBalancesRepo groupBalancesRepo;
 
     public GroupService(GroupRepository groupRepository, UserRepository userRepository,
-                        UserGroupRepository userGroupRepository) {
+                        UserGroupRepository userGroupRepository, GroupBalancesRepo groupBalancesRepo) {
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
         this.userGroupRepository = userGroupRepository;
+        this.groupBalancesRepo = groupBalancesRepo;
     }
 
     public CreateGroupResponseDto createGroup(CreateGroupRequestDto createGroupRequestDto) {
@@ -91,6 +95,15 @@ public class GroupService {
         var userGroup = userGroupRepository.findByUserIdAndGroupId(removeUserFromGroupDto.getUserId(),
                         removeUserFromGroupDto.getGroupId())
                 .orElseThrow(() -> new UserDoesNotExistsException("User/Group doesn't exist"));
+
+        var balances = groupBalancesRepo.findByGroupIdAndFromIdOrGroupIdAndToId(
+                removeUserFromGroupDto.getGroupId(), removeUserFromGroupDto.getUserId(),
+                removeUserFromGroupDto.getGroupId(), removeUserFromGroupDto.getUserId());
+
+        if (!balances.isEmpty()) {
+            throw new CannotRemoveUserException("User with unresolved balances cannot be removed from group");
+        }
+
         userGroup.getUser().getUserGroups().remove(removeUserFromGroupDto.getGroupId());
         userGroup.getGroup().getUsers().remove(removeUserFromGroupDto.getUserId());
         userGroupRepository.delete(userGroup);
