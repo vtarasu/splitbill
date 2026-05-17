@@ -42,4 +42,16 @@ public class UserController {
         log.info("Received request to fetch all balances for user={}", userId);
         return userService.getAllOpenBalances(userId);
     }
+
+    @PostMapping("/settle")
+    public Map<UserDto, BigDecimal> settleBalance(@RequestBody SettleBalanceRequestDto requestDto) {
+        log.info("Received request to settle balances. request={}", requestDto);
+        return userService.recordPaymentForUser(requestDto);
+    }
+
+    @PostMapping("/settle/groups")
+    public List<GetUserGroupsAndBalancesDto> settleGroupBalance(@RequestBody SettleGroupBalanceRequestDto requestDto) {
+        log.info("Received request to settle balance in group. request={}", requestDto);
+        return userService.recordPaymentForGroup(requestDto);
+    }
 }

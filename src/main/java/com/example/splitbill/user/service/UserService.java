@@ -2,10 +2,12 @@ package com.example.splitbill.user.service;
 
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.domain.UserGroup;
+import com.example.splitbill.user.domain.Settlements;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
+import com.example.splitbill.user.repo.SettlementsRepository;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
@@ -18,10 +20,12 @@ import java.util.stream.Collectors;
 public class UserService {
     private final UserRepository userRepository;
     private final GroupBalancesRepo groupBalancesRepo;
+    private final SettlementsRepository settlementsRepository;
 
-    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo) {
+    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo, SettlementsRepository settlementsRepository) {
         this.userRepository = userRepository;
         this.groupBalancesRepo = groupBalancesRepo;
+        this.settlementsRepository = settlementsRepository;
     }
 
     public UserResponseDto createNewUser(User user) {
@@ -114,5 +118,45 @@ public class UserService {
                 .collect(Collectors.toMap
                         ( entry -> new UserDto(entry.getKey(), userCache.get(entry.getKey())),
                                 Map.Entry::getValue));
+    }
+
+    @Transactional
+    public Map<UserDto, BigDecimal> recordPaymentForUser(SettleBalanceRequestDto requestDto) {
+        var groupBalances = groupBalancesRepo.findByFromIdAndToId(requestDto.getFromUserId(), requestDto.getToUserId());
+        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), requestDto.getFromUserId()));
+
+        var fromUser = userRepository.findUserById(requestDto.getFromUserId())
+                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
+
+        var toUser = userRepository.findUserById(requestDto.getToUserId())
+                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
+
+        var settlement = Settlements.builder()
+                .from(fromUser)
+                .to(toUser)
+                .amount(requestDto.getAmount())
+                .build();
+
+        settlementsRepository.save(settlement);
+        groupBalancesRepo.deleteAll(groupBalances);
+        return getAllOpenBalances(fromUser.getId());
+    }
+
+    public List<GetUserGroupsAndBalancesDto> recordPaymentForGroup(SettleGroupBalanceRequestDto requestDto) {
+        var groupBalances = groupBalancesRepo.findByGroupIdAndFromIdAndToId(requestDto.getGroupId(),
+                requestDto.getFromUserId(), requestDto.getToUserId())
+                .orElseThrow(() -> new RuntimeException("Invalid request"));
+
+        var from = groupBalances.getFrom().getId();
+
+        var settlement = Settlements.builder()
+                .from(groupBalances.getFrom())
+                .to(groupBalances.getTo())
+                .amount(groupBalances.getBalance())
+                .build();
+
+        settlementsRepository.save(settlement);
+        groupBalancesRepo.delete(groupBalances);
+        return getUserGroupsAndBalances(from);
     }
 }
