@@ -15,10 +15,10 @@ public class EqualSplitStrategy implements ExpenseSplitService {
 
     @Override
     public List<ExpenseSplit> splitExpense(Map<Long, User> users, AddExpenseRequestDto addExpenseRequestDto) {
-        BigDecimal perPersonShare = addExpenseRequestDto.getAmount().divide(
-                BigDecimal.valueOf(addExpenseRequestDto.getUsersSharingExpense().size()),
-                RoundingMode.FLOOR);
-        List<ExpenseSplit> splits = new ArrayList<>();
+        var numberOfPersons = BigDecimal.valueOf(addExpenseRequestDto.getUsersSharingExpense().size());
+        var perPersonShare = addExpenseRequestDto.getAmount().divide(numberOfPersons, 2, RoundingMode.HALF_UP);
+        var reminder = addExpenseRequestDto.getAmount().subtract(perPersonShare.multiply(numberOfPersons));
+        var splits = new ArrayList<ExpenseSplit>();
         var paidByUser = users.get(addExpenseRequestDto.getPaidByUsers());
         for (Long userId : addExpenseRequestDto.getUsersSharingExpense().keySet()) {
             var split = new ExpenseSplit();
@@ -26,6 +26,10 @@ public class EqualSplitStrategy implements ExpenseSplitService {
             split.setOwedBy(users.get(userId));
             split.setPaidBy(paidByUser);
             splits.add(split);
+        }
+        if (reminder.compareTo(BigDecimal.ZERO) != 0) {
+           var split = splits.getFirst();
+           split.setAmount(split.getAmount().add(reminder));
         }
         return splits;
     }

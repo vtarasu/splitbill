@@ -17,9 +17,9 @@ public class SharesSplitStrategy implements ExpenseSplitService {
     public List<ExpenseSplit> splitExpense(Map<Long, User> users, AddExpenseRequestDto addExpenseRequestDto) {
         List<ExpenseSplit> splits = new ArrayList<>();
         var userExpenses = addExpenseRequestDto.getUsersSharingExpense();
-        var totalShares = userExpenses.values().stream().mapToInt(BigDecimal::intValue).sum();
-        var perShare = addExpenseRequestDto.getAmount().divide(BigDecimal.valueOf(totalShares),
-                RoundingMode.DOWN);
+        var totalShares = BigDecimal.valueOf(userExpenses.values().stream().mapToInt(BigDecimal::intValue).sum());
+        var perShare = addExpenseRequestDto.getAmount().divide(totalShares, 2, RoundingMode.HALF_UP);
+        var reminder = addExpenseRequestDto.getAmount().subtract(perShare.multiply(totalShares));
         var paidByUser = users.get(addExpenseRequestDto.getPaidByUsers());
         for (Long userId : addExpenseRequestDto.getUsersSharingExpense().keySet()) {
             var split = new ExpenseSplit();
@@ -27,6 +27,10 @@ public class SharesSplitStrategy implements ExpenseSplitService {
             split.setOwedBy(users.get(userId));
             split.setPaidBy(paidByUser);
             splits.add(split);
+        }
+        if (reminder.compareTo(BigDecimal.ZERO) != 0) {
+            var split = splits.getFirst();
+            split.setAmount(split.getAmount().add(reminder));
         }
         return splits;
     }
