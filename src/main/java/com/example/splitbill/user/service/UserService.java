@@ -10,6 +10,7 @@ import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.SettlementsRepository;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -21,18 +22,28 @@ public class UserService {
     private final UserRepository userRepository;
     private final GroupBalancesRepo groupBalancesRepo;
     private final SettlementsRepository settlementsRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo, SettlementsRepository settlementsRepository) {
+    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo, SettlementsRepository settlementsRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.groupBalancesRepo = groupBalancesRepo;
         this.settlementsRepository = settlementsRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
-    public UserResponseDto createNewUser(User user) {
+    public UserResponseDto createNewUser(CreateUserRequestDto requestDto) {
+        var user = User.from(requestDto);
         var userByEmailId = userRepository.findUserByEmailId(user.getEmailId());
+        var userByName = userRepository.findUserByUsername(user.getUsername());
 
         if (userByEmailId.isPresent()) {
             throw new UserAlreadyExistsException("Email id already exists. Please try with different email.");
+        }
+
+        if (userByName.isPresent()) {
+            throw new UserAlreadyExistsException("User name already exists. Please try with different username.");
         }
 
         var userByMobileNumber = userRepository.findUserByMobileNumber(user.getMobileNumber());
@@ -40,8 +51,11 @@ public class UserService {
             throw new UserAlreadyExistsException("Mobile number already exists. Please try with different number.");
         }
 
+        user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
         var savedUser = userRepository.save(user);
+        var token = jwtService.generateToken(user);
         return UserResponseDto.builder()
+                .token(token)
                 .username(savedUser.getUsername())
                 .id(savedUser.getId())
                 .build();
@@ -116,20 +130,20 @@ public class UserService {
         }
         return allBalances.entrySet().stream()
                 .collect(Collectors.toMap
-                        ( entry -> new UserDto(entry.getKey(), userCache.get(entry.getKey())),
+                        (entry -> new UserDto(entry.getKey(), userCache.get(entry.getKey())),
                                 Map.Entry::getValue));
     }
 
     @Transactional
-    public Map<UserDto, BigDecimal> recordPaymentForUser(SettleBalanceRequestDto requestDto) {
-        var groupBalances = groupBalancesRepo.findByFromIdAndToId(requestDto.getFromUserId(), requestDto.getToUserId());
-        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), requestDto.getFromUserId()));
-
-        var fromUser = userRepository.findUserById(requestDto.getFromUserId())
+    public Map<UserDto, BigDecimal> recordPaymentForUser(Long userId, SettleBalanceRequestDto requestDto) {
+        var fromUser = userRepository.findUserById(userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
         var toUser = userRepository.findUserById(requestDto.getToUserId())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
+
+        var groupBalances = groupBalancesRepo.findByFromIdAndToId(userId, requestDto.getToUserId());
+        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), userId));
 
         var settlement = Settlements.builder()
                 .from(fromUser)
@@ -144,7 +158,7 @@ public class UserService {
 
     public List<GetUserGroupsAndBalancesDto> recordPaymentForGroup(SettleGroupBalanceRequestDto requestDto) {
         var groupBalances = groupBalancesRepo.findByGroupIdAndFromIdAndToId(requestDto.getGroupId(),
-                requestDto.getFromUserId(), requestDto.getToUserId())
+                        requestDto.getFromUserId(), requestDto.getToUserId())
                 .orElseThrow(() -> new RuntimeException("Invalid request"));
 
         var from = groupBalances.getFrom().getId();
@@ -158,5 +172,22 @@ public class UserService {
         settlementsRepository.save(settlement);
         groupBalancesRepo.delete(groupBalances);
         return getUserGroupsAndBalances(from);
+    }
+
+    public UserResponseDto validate(LoginRequestDto loginRequestDto) {
+        var user = userRepository.findUserByUsername(loginRequestDto.getUsername())
+                .orElseThrow(() -> new UserDoesNotExistsException("User name doesn't exists. Please try with valid username."));
+
+        boolean passwordMatch = passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword());
+
+        if (!passwordMatch) {
+            throw new RuntimeException("Invalid username/password");
+        }
+
+        var token = jwtService.generateToken(user);
+        return UserResponseDto.builder()
+                .token(token)
+                .id(user.getId())
+                .build();
     }
 }

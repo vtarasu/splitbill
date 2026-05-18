@@ -25,7 +25,10 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true)
     private String username;
+
+    @Column(unique = true)
     private String emailId;
     private String mobileNumber;
 
@@ -34,6 +37,8 @@ public class User {
 
     @CreationTimestamp
     private LocalDateTime dateJoinedAt;
+
+    private String password;
 
     public static User from(CreateUserRequestDto createUserRequestDto) {
         return User.builder()

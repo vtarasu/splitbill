@@ -2,8 +2,8 @@ package com.example.splitbill.user.controller;
 
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.service.UserService;
-import com.example.splitbill.user.domain.User;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -20,10 +20,21 @@ public class UserController {
         this.userService = userService;
     }
 
-    @PostMapping("/add")
+    @PostMapping("/register")
     public UserResponseDto createUser(@RequestBody CreateUserRequestDto createUserRequestDto) {
-        var user = User.from(createUserRequestDto);
-        return userService.createNewUser(user);
+        log.info("Received request to register user. username={} emailId={}", createUserRequestDto.getUsername(),
+                createUserRequestDto.getEmailId());
+        var user = userService.createNewUser(createUserRequestDto);
+        log.info("User registered successfully. username={}", user.getUsername());
+        return user;
+    }
+
+    @PostMapping("/login")
+    public UserResponseDto loginUser(@RequestBody LoginRequestDto loginRequestDto) {
+        log.info("Received request to login for user. username={}", loginRequestDto.getUsername());
+        var user = userService.validate(loginRequestDto);
+        log.info("User login successful. username={}", user.getUsername());
+        return user;
     }
 
     @PostMapping("/update")
@@ -45,8 +56,9 @@ public class UserController {
 
     @PostMapping("/settle")
     public Map<UserDto, BigDecimal> settleBalance(@RequestBody SettleBalanceRequestDto requestDto) {
-        log.info("Received request to settle balances. request={}", requestDto);
-        return userService.recordPaymentForUser(requestDto);
+        var userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("Received request to settle balances. userId={} request={}", userId, requestDto);
+        return userService.recordPaymentForUser(userId, requestDto);
     }
 
     @PostMapping("/settle/groups")
