@@ -5,6 +5,7 @@ import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.domain.Settlements;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.*;
+import com.example.splitbill.user.exception.InvalidCredentialsException;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.SettlementsRepository;
@@ -181,13 +182,14 @@ public class UserService {
         boolean passwordMatch = passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword());
 
         if (!passwordMatch) {
-            throw new RuntimeException("Invalid username/password");
+            throw new InvalidCredentialsException("Invalid username/password");
         }
 
         var token = jwtService.generateToken(user);
         return UserResponseDto.builder()
                 .token(token)
                 .id(user.getId())
+                .username(user.getUsername())
                 .build();
     }
 }

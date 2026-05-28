@@ -3,10 +3,13 @@ package com.example.splitbill.user.controller;
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.service.UserService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -30,11 +33,22 @@ public class UserController {
     }
 
     @PostMapping("/login")
-    public UserResponseDto loginUser(@RequestBody LoginRequestDto loginRequestDto) {
+    public ResponseEntity<?> loginUser(@RequestBody LoginRequestDto loginRequestDto) {
         log.info("Received request to login for user. username={}", loginRequestDto.getUsername());
-        var user = userService.validate(loginRequestDto);
-        log.info("User login successful. username={}", user.getUsername());
-        return user;
+        try {
+            var user = userService.validate(loginRequestDto);
+            log.info("User login successful. username={}", loginRequestDto.getUsername());
+            return ResponseEntity.ok(user);
+        } catch (Exception e) {
+            log.error("Invalid credentials for username={}", loginRequestDto.getUsername());
+            var errorResponse = ErrorResponse.builder()
+                    .status(401)
+                    .errorMessage("Invalid username or password")
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(errorResponse);
+        }
     }
 
     @PostMapping("/update")

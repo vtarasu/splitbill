@@ -22,7 +22,10 @@ public class JwtService {
     }
 
     public String generateToken(User user) {
-        return Jwts.builder().setSubject(user.getUsername()).claim("userId", user.getId()).setIssuedAt(new Date()).setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24)).signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
+        return Jwts.builder().setSubject(user.getUsername()).claim("userId", user.getId())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256).compact();
     }
 
     public Long extractUserId(String token) {
