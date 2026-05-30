@@ -1,6 +1,7 @@
 package com.example.splitbill.user.controller;
 
 import com.example.splitbill.user.dto.*;
+import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
 @Slf4j
 @RestController
@@ -24,12 +27,25 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public UserResponseDto createUser(@RequestBody CreateUserRequestDto createUserRequestDto) {
+    public ResponseEntity<?> createUser(@RequestBody CreateUserRequestDto createUserRequestDto) {
         log.info("Received request to register user. username={} emailId={}", createUserRequestDto.getUsername(),
                 createUserRequestDto.getEmailId());
-        var user = userService.createNewUser(createUserRequestDto);
-        log.info("User registered successfully. username={}", user.getUsername());
-        return user;
+        try {
+            var user = userService.createNewUser(createUserRequestDto);
+            log.info("User registered successfully. username={}", user.getUsername());
+            return ResponseEntity.ok(user);
+        } catch (UserAlreadyExistsException e) {
+            log.error("Invalid request for registering as new user. request={}", createUserRequestDto);
+            var errorResponse = ErrorResponse.builder()
+                    .status(200)
+                    .errorMessage(e.getMessage())
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.ok(errorResponse);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Registration request failed");
+        }
     }
 
     @PostMapping("/login")
@@ -56,23 +72,44 @@ public class UserController {
         return userService.updateUser(updateUserDto);
     }
 
+    @GetMapping("/me")
+    public UserResponseDto getUser() {
+        var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
+        long userId = (long) auth.getPrincipal();
+        return userService.getUser(userId);
+    }
+
     @GetMapping("/groups/{userId}")
     public List<GetUserGroupsAndBalancesDto> getUserGroups(@PathVariable Long userId) {
         log.info("Received request to fetch groups for user={}", userId);
         return userService.getUserGroupsAndBalances(userId);
     }
 
-    @GetMapping("/balances/{userId}")
-    public Map<UserDto, BigDecimal> getAllBalances(@PathVariable Long userId) {
+    @GetMapping("/balances")
+    public List<TotalBalancesDto> getAllBalances() {
+        var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
+        long userId = (long) auth.getPrincipal();
         log.info("Received request to fetch all balances for user={}", userId);
-        return userService.getAllOpenBalances(userId);
+        return userService.getAllOpenBalances(4L);
     }
 
     @PostMapping("/settle")
-    public Map<UserDto, BigDecimal> settleBalance(@RequestBody SettleBalanceRequestDto requestDto) {
-        var userId = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        log.info("Received request to settle balances. userId={} request={}", userId, requestDto);
-        return userService.recordPaymentForUser(userId, requestDto);
+    public ResponseEntity<?> settleBalance(@RequestBody SettleBalanceRequestDto requestDto) {
+        log.info("Received request to settle balances. request={}", requestDto);
+        try {
+            return ResponseEntity.ok(userService.recordPaymentForUser(requestDto));
+        } catch (Exception e) {
+            log.error("Error occurred while settling balance. request={}", requestDto, e);
+            var errorResponse = ErrorResponse.builder()
+                    .status(500)
+                    .errorMessage("Error occurred")
+                    .timestamp(LocalDateTime.now())
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(errorResponse);
+        }
     }
 
     @PostMapping("/settle/groups")

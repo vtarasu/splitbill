@@ -16,7 +16,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.stream.Collectors;
+
+import static com.example.splitbill.user.dto.Direction.GET;
+import static com.example.splitbill.user.dto.Direction.GIVE;
+import static java.math.BigDecimal.ZERO;
 
 @Service
 public class UserService {
@@ -113,7 +116,7 @@ public class UserService {
         return result;
     }
 
-    public Map<UserDto, BigDecimal> getAllOpenBalances(Long userId) {
+    public List<TotalBalancesDto> getAllOpenBalances(Long userId) {
         var groupBalances = groupBalancesRepo.findByFromIdOrToId(userId, userId);
         var allBalances = new HashMap<Long, BigDecimal>();
         var userCache = new HashMap<Long, String>();
@@ -121,37 +124,43 @@ public class UserService {
         for (var groupBalance : groupBalances) {
             if (groupBalance.getFrom().getId().equals(userId)) {
                 id = groupBalance.getTo().getId();
-                allBalances.put(id, allBalances.getOrDefault(id, BigDecimal.ZERO).subtract(groupBalance.getBalance()));
+                allBalances.put(id, allBalances.getOrDefault(id, ZERO).subtract(groupBalance.getBalance()));
                 userCache.put(id, groupBalance.getTo().getUsername());
             } else {
                 id = groupBalance.getFrom().getId();
-                allBalances.put(id, allBalances.getOrDefault(id, BigDecimal.ZERO).add(groupBalance.getBalance()));
+                allBalances.put(id, allBalances.getOrDefault(id, ZERO).add(groupBalance.getBalance()));
                 userCache.put(id, groupBalance.getFrom().getUsername());
             }
         }
-        return allBalances.entrySet().stream()
-                .collect(Collectors.toMap
-                        (entry -> new UserDto(entry.getKey(), userCache.get(entry.getKey())),
-                                Map.Entry::getValue));
+        var results = new ArrayList<TotalBalancesDto>();
+        for (Map.Entry<Long, BigDecimal> entry :allBalances.entrySet()) {
+            var balance = TotalBalancesDto.builder()
+                    .userId(entry.getKey())
+                    .amount(entry.getValue().abs())
+                    .userName(userCache.get(entry.getKey()))
+                    .direction(entry.getValue().compareTo(ZERO) < 0 ? GIVE : GET)
+                    .build();
+            results.add(balance);
+        }
+        return results;
     }
 
     @Transactional
-    public Map<UserDto, BigDecimal> recordPaymentForUser(Long userId, SettleBalanceRequestDto requestDto) {
-        var fromUser = userRepository.findUserById(userId)
+    public List<TotalBalancesDto> recordPaymentForUser(SettleBalanceRequestDto requestDto) {
+        var fromUser = userRepository.findUserById(requestDto.getFromUserId())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
         var toUser = userRepository.findUserById(requestDto.getToUserId())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
-        var groupBalances = groupBalancesRepo.findByFromIdAndToId(userId, requestDto.getToUserId());
-        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), userId));
+        var groupBalances = groupBalancesRepo.findByFromIdAndToId(requestDto.getFromUserId(), requestDto.getToUserId());
+        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), requestDto.getFromUserId()));
 
         var settlement = Settlements.builder()
                 .from(fromUser)
                 .to(toUser)
                 .amount(requestDto.getAmount())
                 .build();
-
         settlementsRepository.save(settlement);
         groupBalancesRepo.deleteAll(groupBalances);
         return getAllOpenBalances(fromUser.getId());
@@ -188,6 +197,15 @@ public class UserService {
         var token = jwtService.generateToken(user);
         return UserResponseDto.builder()
                 .token(token)
+                .id(user.getId())
+                .username(user.getUsername())
+                .build();
+    }
+
+    public UserResponseDto getUser(long userId) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists. Please try with valid token."));
+        return UserResponseDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
                 .build();

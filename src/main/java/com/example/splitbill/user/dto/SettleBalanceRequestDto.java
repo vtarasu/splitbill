@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 @Setter
 @Builder
 public class SettleBalanceRequestDto {
+    Long fromUserId;
     Long toUserId;
     BigDecimal amount;
 }
