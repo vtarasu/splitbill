@@ -99,19 +99,20 @@ public class UserService {
                     .balances(balances)
                     .groupId(userGroup.getGroup().getId())
                     .groupName(userGroup.getGroup().getGroupName())
+                    .memberCount(userGroup.getGroup().getUsers().size())
                     .build();
             result.add(userGroupAndBalance);
         }
         return result;
     }
 
-    private Map<OwesDto, BigDecimal> findBalancesForGroup(UserGroup userGroup) {
+    private List<OwesDto> findBalancesForGroup(UserGroup userGroup) {
         var groupId = userGroup.getGroup().getId();
         var balances = groupBalancesRepo.findByGroupId(groupId);
-        var result = new HashMap<OwesDto, BigDecimal>();
+        var result = new ArrayList<OwesDto>();
         for (var balance : balances) {
-            result.put(new OwesDto(balance.getFrom().getUsername(), balance.getTo().getUsername()),
-                    balance.getBalance());
+            result.add(new OwesDto(balance.getFrom().getUsername(),
+                    balance.getTo().getUsername(), balance.getBalance()));
         }
         return result;
     }

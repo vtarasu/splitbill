@@ -80,8 +80,11 @@ public class UserController {
         return userService.getUser(userId);
     }
 
-    @GetMapping("/groups/{userId}")
-    public List<GetUserGroupsAndBalancesDto> getUserGroups(@PathVariable Long userId) {
+    @GetMapping("/groups")
+    public List<GetUserGroupsAndBalancesDto> getUserGroups() {
+        var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
+        long userId = (long) auth.getPrincipal();
         log.info("Received request to fetch groups for user={}", userId);
         return userService.getUserGroupsAndBalances(userId);
     }
@@ -92,7 +95,7 @@ public class UserController {
                 .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
         long userId = (long) auth.getPrincipal();
         log.info("Received request to fetch all balances for user={}", userId);
-        return userService.getAllOpenBalances(4L);
+        return userService.getAllOpenBalances(userId);
     }
 
     @PostMapping("/settle")
