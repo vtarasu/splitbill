@@ -9,11 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 
 @Slf4j
@@ -72,6 +69,20 @@ public class UserController {
         return userService.updateUser(updateUserDto);
     }
 
+    @PostMapping("/updatePassword")
+    public ResponseEntity<?> updatePassword(@RequestBody UpdatePasswordDto updatePasswordDto) {
+        var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("Received request to update password for user={}", userId);
+        try {
+            userService.updatePasswordForUser((Long) userId, updatePasswordDto);
+            return ResponseEntity.ok("Password updated successfully");
+        } catch (Exception e) {
+            log.error("Unable to update password.", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(e.getLocalizedMessage());
+        }
+    }
+
     @GetMapping("/me")
     public UserResponseDto getUser() {
         var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
@@ -120,4 +131,13 @@ public class UserController {
         log.info("Received request to settle balance in group. request={}", requestDto);
         return userService.recordPaymentForGroup(requestDto);
     }
+
+    @GetMapping("/settlements")
+    public SettlementHistoryResponseDto getUserSettlements(@RequestParam("pageno") Integer pageNumber,
+                                                                 @RequestParam("size") Integer pageSize) {
+        var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("Received request to fetch settlement history for user={}",userId);
+        return userService.getSettlements((Long) userId, pageNumber, pageSize);
+    }
+
 }

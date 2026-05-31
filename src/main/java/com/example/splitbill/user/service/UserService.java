@@ -11,6 +11,9 @@ import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.SettlementsRepository;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -67,7 +70,8 @@ public class UserService {
 
     @Transactional
     public UserResponseDto updateUser(UpdateUserDto updateUserDto) {
-        var user = userRepository.findUserById(updateUserDto.getId())
+        var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var user = userRepository.findUserById((Long) userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
 
         if (Objects.nonNull(updateUserDto.getEmailId())) {
@@ -78,9 +82,7 @@ public class UserService {
             user.setMobileNumber(updateUserDto.getMobileNumber());
         }
 
-        if (Objects.nonNull(updateUserDto.getUsername())) {
-            user.setUsername(updateUserDto.getUsername());
-        }
+        userRepository.save(user);
         return UserResponseDto.builder()
                 .username(user.getUsername())
                 .id(user.getId())
@@ -134,7 +136,7 @@ public class UserService {
             }
         }
         var results = new ArrayList<TotalBalancesDto>();
-        for (Map.Entry<Long, BigDecimal> entry :allBalances.entrySet()) {
+        for (Map.Entry<Long, BigDecimal> entry : allBalances.entrySet()) {
             var balance = TotalBalancesDto.builder()
                     .userId(entry.getKey())
                     .amount(entry.getValue().abs())
@@ -209,6 +211,45 @@ public class UserService {
         return UserResponseDto.builder()
                 .id(user.getId())
                 .username(user.getUsername())
+                .emailId(user.getEmailId())
+                .mobileNumber(user.getMobileNumber())
                 .build();
+    }
+
+    public SettlementHistoryResponseDto getSettlements(Long userId, Integer pageNumber, Integer pageSize) {
+        var pageable = PageRequest.of(pageNumber, pageSize, Sort.by("settledAt").descending());
+        var settlements = settlementsRepository.findByFromIdOrToId(userId, userId, pageable);
+        var totalAmount = settlementsRepository.getTotalSettledAmount(userId);
+        var settlementDtos = settlements.stream()
+                .map(settlement -> SettlementDto.builder()
+                        .id(settlement.getId())
+                        .from(settlement.getFrom().getUsername())
+                        .to(settlement.getTo().getUsername())
+                        .amount(settlement.getAmount())
+                        .settledAt(settlement.getSettledAt())
+                        .build())
+                .toList();
+        return SettlementHistoryResponseDto.builder()
+                .totalPages(settlements.getTotalPages())
+                .totalSettlements(settlements.getNumberOfElements())
+                .totalAmount(totalAmount)
+                .currentPage(pageNumber)
+                .settlements(settlementDtos)
+                .build();
+    }
+
+    public void updatePasswordForUser(Long userId, UpdatePasswordDto updatePasswordDto) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
+
+        boolean passwordMatch = passwordEncoder.matches(updatePasswordDto.getOldPassword(), user.getPassword());
+
+        if (!passwordMatch) {
+            throw new InvalidCredentialsException("Incorrect password. Please try with correct password");
+        }
+
+        var newPassword = passwordEncoder.encode(updatePasswordDto.getNewPassword());
+        user.setPassword(newPassword);
+        userRepository.save(user);
     }
 }

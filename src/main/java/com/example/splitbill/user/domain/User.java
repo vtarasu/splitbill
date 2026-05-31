@@ -51,9 +51,7 @@ public class User {
 
     public static User from(UpdateUserDto updateUserDto) {
         return User.builder()
-                .id(updateUserDto.getId())
                 .emailId(updateUserDto.getEmailId())
-                .username(updateUserDto.getUsername())
                 .mobileNumber(updateUserDto.getMobileNumber())
                 .build();
     }

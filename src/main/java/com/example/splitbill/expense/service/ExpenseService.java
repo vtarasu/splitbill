@@ -128,6 +128,7 @@ public class ExpenseService {
                 !expenseRequestDto.getExpenseName().equals(expense.getExpense())) {
             expense.setExpense(expenseRequestDto.getExpenseName());
         }
+        expenseRepo.save(expense);
     }
 
     public ExpenseDetailsDto getExpenseById(Long id) {

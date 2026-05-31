@@ -7,10 +7,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UpdateUserDto {
-    @NonNull
-    private Long id;
-
-    private String username;
     private String emailId;
     private String mobileNumber;
+    private String password;
 }

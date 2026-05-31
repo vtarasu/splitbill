@@ -43,10 +43,6 @@ public class UpdateExpenseService {
         return ExpenseResponseDto.from(expense.getId(), groupBalances);
     }
 
-    private List<GroupBalances> recomputeExpense(Expense expense, UpdateExpenseRequestDto expenseRequestDto) {
-        return null;
-    }
-
     @Transactional
     private void updateExpenseMetaData(Expense expense, UpdateExpenseRequestDto expenseRequestDto) {
         if (Objects.nonNull(expenseRequestDto.getExpenseDate()) &&

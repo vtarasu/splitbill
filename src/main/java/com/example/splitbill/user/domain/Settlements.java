@@ -2,8 +2,10 @@ package com.example.splitbill.user.domain;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "Settlements")
@@ -27,4 +29,7 @@ public class Settlements {
     private User to;
 
     private BigDecimal amount;
+
+    @CreationTimestamp
+    private LocalDateTime settledAt;
 }
