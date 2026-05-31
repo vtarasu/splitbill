@@ -6,15 +6,9 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class CreateUserRequestDto {
+public class LoginRequestDto {
     @NonNull
     private String username;
-
-    @NonNull
-    private String emailId;
-
-    @NonNull
-    private String mobileNumber;
 
     @NonNull
     private String password;

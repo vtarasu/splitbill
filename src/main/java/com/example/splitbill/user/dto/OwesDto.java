@@ -1,4 +1,6 @@
 package com.example.splitbill.user.dto;
 
-public record OwesDto(String from, String to) {
+import java.math.BigDecimal;
+
+public record OwesDto(String from, String to, BigDecimal amount) {
 }

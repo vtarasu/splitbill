@@ -2,9 +2,9 @@ package com.example.splitbill.group.service;
 
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.group.dto.creategroup.CreateGroupRequestDto;
-import com.example.splitbill.group.dto.creategroup.CreateGroupResponseDto;
 import com.example.splitbill.group.dto.creategroup.UpdateGroupRequestDto;
 import com.example.splitbill.group.dto.removeuser.RemoveUserFromGroupDto;
+import com.example.splitbill.group.exception.CannotRemoveGroupException;
 import com.example.splitbill.group.exception.CannotRemoveUserException;
 import com.example.splitbill.group.repo.UserGroupRepository;
 import com.example.splitbill.group.dto.adduser.AddUserToGroupDto;
@@ -13,15 +13,19 @@ import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.group.exception.GroupAlreadyExistsException;
 import com.example.splitbill.group.exception.GroupDoesNotExistsException;
 import com.example.splitbill.group.repo.GroupRepository;
+import com.example.splitbill.user.dto.GetUserGroupsAndBalancesDto;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.UserRepository;
-import com.example.splitbill.user.dto.UserRole;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Objects;
+
+import static com.example.splitbill.user.dto.UserRole.ADMIN;
+import static com.example.splitbill.user.dto.UserRole.MEMBER;
 
 @Slf4j
 @Service
@@ -39,8 +43,9 @@ public class GroupService {
         this.groupBalancesRepo = groupBalancesRepo;
     }
 
-    public CreateGroupResponseDto createGroup(CreateGroupRequestDto createGroupRequestDto) {
-        var user = userRepository.findUserById(createGroupRequestDto.getUserId())
+    public GetUserGroupsAndBalancesDto createGroup(CreateGroupRequestDto createGroupRequestDto) {
+        var userId = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
+        var user = userRepository.findUserById((Long) userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("User not exists."));
 
         var existingGroup = groupRepository.findGroupByGroupName(createGroupRequestDto.getGroupName());
@@ -51,19 +56,32 @@ public class GroupService {
 
         var group = Group.builder()
                 .groupName(createGroupRequestDto.getGroupName())
-                .groupDescription(createGroupRequestDto.getGroupDescription())
+                .createdBy(user)
                 .users(new ArrayList<>())
                 .build();
 
-        var userGroup = UserGroup.builder()
-                .user(user)
-                .group(group)
-                .userrole(UserRole.ADMIN)
-                .build();
-        group.getUsers().add(userGroup);
-        user.getUserGroups().add(userGroup);
+        createGroupRequestDto.getGroupMembers().add(user.getUsername());
+        var groupUsers = createGroupRequestDto.getGroupMembers()
+                .stream().map(username -> userRepository.findUserByUsername(username)
+                        .orElseThrow(() -> new UserDoesNotExistsException("User "+ username + " not exists")))
+                .toList();
+
+        var userGroups = groupUsers.stream()
+                .map(groupUser -> UserGroup.builder().user(groupUser)
+                        .group(group)
+                        .userrole(groupUser.getUsername().equals(user.getUsername()) ? ADMIN : MEMBER)
+                        .build())
+                .toList();
+
+        group.getUsers().addAll(userGroups);
+        user.getUserGroups().addAll(userGroups);
         var savedGroup = groupRepository.save(group);
-        return CreateGroupResponseDto.from(savedGroup);
+        return GetUserGroupsAndBalancesDto.builder()
+                .groupId(savedGroup.getId())
+                .groupName(savedGroup.getGroupName())
+                .memberCount(groupUsers.size())
+                .balances(new ArrayList<>())
+                .build();
     }
 
     public AddUserToGroupDto addUserToGroup(AddUserToGroupDto addUserToGroupDto) {
@@ -78,7 +96,7 @@ public class GroupService {
         var userGroups = users.stream()
                 .map(user -> UserGroup.builder().user(user)
                         .group(group)
-                        .userrole(UserRole.MEMBER)
+                        .userrole(MEMBER)
                         .build())
                 .toList();
         var savedUserGroups = userGroupRepository.saveAll(userGroups);
@@ -91,7 +109,7 @@ public class GroupService {
     }
 
     @Transactional
-    public void removeUserFromGroup(RemoveUserFromGroupDto removeUserFromGroupDto) {
+    public void removeUserFromGroup(RemoveUserFromGroupDto removeUserFromGroupDto) throws CannotRemoveUserException {
         var userGroup = userGroupRepository.findByUserIdAndGroupId(removeUserFromGroupDto.getUserId(),
                         removeUserFromGroupDto.getGroupId())
                 .orElseThrow(() -> new UserDoesNotExistsException("User/Group doesn't exist"));
@@ -113,10 +131,19 @@ public class GroupService {
     public UpdateGroupRequestDto updateGroup(UpdateGroupRequestDto updateGroupRequestDto) {
         var group = groupRepository.findGroupById(updateGroupRequestDto.getGroupId())
                 .orElseThrow(() -> new GroupDoesNotExistsException("Group doesn't exists"));
-
-        if (Objects.nonNull(updateGroupRequestDto.getGroupDescription())) {
-            group.setGroupDescription(updateGroupRequestDto.getGroupDescription());
-        }
         return updateGroupRequestDto;
+    }
+
+    @Transactional
+    public void deleteGroup(Long id) throws CannotRemoveGroupException {
+        var group = groupRepository.findGroupById(id)
+                .orElseThrow(() -> new GroupDoesNotExistsException("Invalid group id"));
+
+        var balanceExists = groupBalancesRepo.findByGroupId(id);
+        if (!balanceExists.isEmpty()) {
+            throw new CannotRemoveGroupException("Outstanding balances exists, cannot delete group");
+        }
+        userGroupRepository.deleteByGroupId(id);
+        groupRepository.delete(group);
     }
 }

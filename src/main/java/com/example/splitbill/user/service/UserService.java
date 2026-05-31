@@ -5,34 +5,52 @@ import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.domain.Settlements;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.*;
+import com.example.splitbill.user.exception.InvalidCredentialsException;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.SettlementsRepository;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.*;
-import java.util.stream.Collectors;
+
+import static com.example.splitbill.user.dto.Direction.GET;
+import static com.example.splitbill.user.dto.Direction.GIVE;
+import static java.math.BigDecimal.ZERO;
 
 @Service
 public class UserService {
     private final UserRepository userRepository;
     private final GroupBalancesRepo groupBalancesRepo;
     private final SettlementsRepository settlementsRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo, SettlementsRepository settlementsRepository) {
+    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo, SettlementsRepository settlementsRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.groupBalancesRepo = groupBalancesRepo;
         this.settlementsRepository = settlementsRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
-    public UserResponseDto createNewUser(User user) {
+    public UserResponseDto createNewUser(CreateUserRequestDto requestDto) {
+        var user = User.from(requestDto);
         var userByEmailId = userRepository.findUserByEmailId(user.getEmailId());
+        var userByName = userRepository.findUserByUsername(user.getUsername());
 
         if (userByEmailId.isPresent()) {
             throw new UserAlreadyExistsException("Email id already exists. Please try with different email.");
+        }
+
+        if (userByName.isPresent()) {
+            throw new UserAlreadyExistsException("User name already exists. Please try with different username.");
         }
 
         var userByMobileNumber = userRepository.findUserByMobileNumber(user.getMobileNumber());
@@ -40,8 +58,11 @@ public class UserService {
             throw new UserAlreadyExistsException("Mobile number already exists. Please try with different number.");
         }
 
+        user.setPassword(passwordEncoder.encode(requestDto.getPassword()));
         var savedUser = userRepository.save(user);
+        var token = jwtService.generateToken(user);
         return UserResponseDto.builder()
+                .token(token)
                 .username(savedUser.getUsername())
                 .id(savedUser.getId())
                 .build();
@@ -49,7 +70,8 @@ public class UserService {
 
     @Transactional
     public UserResponseDto updateUser(UpdateUserDto updateUserDto) {
-        var user = userRepository.findUserById(updateUserDto.getId())
+        var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var user = userRepository.findUserById((Long) userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
 
         if (Objects.nonNull(updateUserDto.getEmailId())) {
@@ -60,9 +82,7 @@ public class UserService {
             user.setMobileNumber(updateUserDto.getMobileNumber());
         }
 
-        if (Objects.nonNull(updateUserDto.getUsername())) {
-            user.setUsername(updateUserDto.getUsername());
-        }
+        userRepository.save(user);
         return UserResponseDto.builder()
                 .username(user.getUsername())
                 .id(user.getId())
@@ -81,24 +101,25 @@ public class UserService {
                     .balances(balances)
                     .groupId(userGroup.getGroup().getId())
                     .groupName(userGroup.getGroup().getGroupName())
+                    .memberCount(userGroup.getGroup().getUsers().size())
                     .build();
             result.add(userGroupAndBalance);
         }
         return result;
     }
 
-    private Map<OwesDto, BigDecimal> findBalancesForGroup(UserGroup userGroup) {
+    private List<OwesDto> findBalancesForGroup(UserGroup userGroup) {
         var groupId = userGroup.getGroup().getId();
         var balances = groupBalancesRepo.findByGroupId(groupId);
-        var result = new HashMap<OwesDto, BigDecimal>();
+        var result = new ArrayList<OwesDto>();
         for (var balance : balances) {
-            result.put(new OwesDto(balance.getFrom().getUsername(), balance.getTo().getUsername()),
-                    balance.getBalance());
+            result.add(new OwesDto(balance.getFrom().getUsername(),
+                    balance.getTo().getUsername(), balance.getBalance()));
         }
         return result;
     }
 
-    public Map<UserDto, BigDecimal> getAllOpenBalances(Long userId) {
+    public List<TotalBalancesDto> getAllOpenBalances(Long userId) {
         var groupBalances = groupBalancesRepo.findByFromIdOrToId(userId, userId);
         var allBalances = new HashMap<Long, BigDecimal>();
         var userCache = new HashMap<Long, String>();
@@ -106,37 +127,43 @@ public class UserService {
         for (var groupBalance : groupBalances) {
             if (groupBalance.getFrom().getId().equals(userId)) {
                 id = groupBalance.getTo().getId();
-                allBalances.put(id, allBalances.getOrDefault(id, BigDecimal.ZERO).subtract(groupBalance.getBalance()));
+                allBalances.put(id, allBalances.getOrDefault(id, ZERO).subtract(groupBalance.getBalance()));
                 userCache.put(id, groupBalance.getTo().getUsername());
             } else {
                 id = groupBalance.getFrom().getId();
-                allBalances.put(id, allBalances.getOrDefault(id, BigDecimal.ZERO).add(groupBalance.getBalance()));
+                allBalances.put(id, allBalances.getOrDefault(id, ZERO).add(groupBalance.getBalance()));
                 userCache.put(id, groupBalance.getFrom().getUsername());
             }
         }
-        return allBalances.entrySet().stream()
-                .collect(Collectors.toMap
-                        ( entry -> new UserDto(entry.getKey(), userCache.get(entry.getKey())),
-                                Map.Entry::getValue));
+        var results = new ArrayList<TotalBalancesDto>();
+        for (Map.Entry<Long, BigDecimal> entry : allBalances.entrySet()) {
+            var balance = TotalBalancesDto.builder()
+                    .userId(entry.getKey())
+                    .amount(entry.getValue().abs())
+                    .userName(userCache.get(entry.getKey()))
+                    .direction(entry.getValue().compareTo(ZERO) < 0 ? GIVE : GET)
+                    .build();
+            results.add(balance);
+        }
+        return results;
     }
 
     @Transactional
-    public Map<UserDto, BigDecimal> recordPaymentForUser(SettleBalanceRequestDto requestDto) {
-        var groupBalances = groupBalancesRepo.findByFromIdAndToId(requestDto.getFromUserId(), requestDto.getToUserId());
-        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), requestDto.getFromUserId()));
-
+    public List<TotalBalancesDto> recordPaymentForUser(SettleBalanceRequestDto requestDto) {
         var fromUser = userRepository.findUserById(requestDto.getFromUserId())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
         var toUser = userRepository.findUserById(requestDto.getToUserId())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
+        var groupBalances = groupBalancesRepo.findByFromIdAndToId(requestDto.getFromUserId(), requestDto.getToUserId());
+        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), requestDto.getFromUserId()));
+
         var settlement = Settlements.builder()
                 .from(fromUser)
                 .to(toUser)
                 .amount(requestDto.getAmount())
                 .build();
-
         settlementsRepository.save(settlement);
         groupBalancesRepo.deleteAll(groupBalances);
         return getAllOpenBalances(fromUser.getId());
@@ -144,7 +171,7 @@ public class UserService {
 
     public List<GetUserGroupsAndBalancesDto> recordPaymentForGroup(SettleGroupBalanceRequestDto requestDto) {
         var groupBalances = groupBalancesRepo.findByGroupIdAndFromIdAndToId(requestDto.getGroupId(),
-                requestDto.getFromUserId(), requestDto.getToUserId())
+                        requestDto.getFromUserId(), requestDto.getToUserId())
                 .orElseThrow(() -> new RuntimeException("Invalid request"));
 
         var from = groupBalances.getFrom().getId();
@@ -158,5 +185,71 @@ public class UserService {
         settlementsRepository.save(settlement);
         groupBalancesRepo.delete(groupBalances);
         return getUserGroupsAndBalances(from);
+    }
+
+    public UserResponseDto validate(LoginRequestDto loginRequestDto) {
+        var user = userRepository.findUserByUsername(loginRequestDto.getUsername())
+                .orElseThrow(() -> new UserDoesNotExistsException("User name doesn't exists. Please try with valid username."));
+
+        boolean passwordMatch = passwordEncoder.matches(loginRequestDto.getPassword(), user.getPassword());
+
+        if (!passwordMatch) {
+            throw new InvalidCredentialsException("Invalid username/password");
+        }
+
+        var token = jwtService.generateToken(user);
+        return UserResponseDto.builder()
+                .token(token)
+                .id(user.getId())
+                .username(user.getUsername())
+                .build();
+    }
+
+    public UserResponseDto getUser(long userId) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists. Please try with valid token."));
+        return UserResponseDto.builder()
+                .id(user.getId())
+                .username(user.getUsername())
+                .emailId(user.getEmailId())
+                .mobileNumber(user.getMobileNumber())
+                .build();
+    }
+
+    public SettlementHistoryResponseDto getSettlements(Long userId, Integer pageNumber, Integer pageSize) {
+        var pageable = PageRequest.of(pageNumber, pageSize, Sort.by("settledAt").descending());
+        var settlements = settlementsRepository.findByFromIdOrToId(userId, userId, pageable);
+        var totalAmount = settlementsRepository.getTotalSettledAmount(userId);
+        var settlementDtos = settlements.stream()
+                .map(settlement -> SettlementDto.builder()
+                        .id(settlement.getId())
+                        .from(settlement.getFrom().getUsername())
+                        .to(settlement.getTo().getUsername())
+                        .amount(settlement.getAmount())
+                        .settledAt(settlement.getSettledAt())
+                        .build())
+                .toList();
+        return SettlementHistoryResponseDto.builder()
+                .totalPages(settlements.getTotalPages())
+                .totalSettlements(settlements.getNumberOfElements())
+                .totalAmount(totalAmount)
+                .currentPage(pageNumber)
+                .settlements(settlementDtos)
+                .build();
+    }
+
+    public void updatePasswordForUser(Long userId, UpdatePasswordDto updatePasswordDto) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
+
+        boolean passwordMatch = passwordEncoder.matches(updatePasswordDto.getOldPassword(), user.getPassword());
+
+        if (!passwordMatch) {
+            throw new InvalidCredentialsException("Incorrect password. Please try with correct password");
+        }
+
+        var newPassword = passwordEncoder.encode(updatePasswordDto.getNewPassword());
+        user.setPassword(newPassword);
+        userRepository.save(user);
     }
 }
