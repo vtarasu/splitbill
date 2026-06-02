@@ -42,38 +42,4 @@ public class AddExpenseRequestDto {
                 .amount(expenseRequestDto.getAmount())
                 .build();
     }
-
-    public String getSplitDetailsValue() {
-        var stringBuilder = new StringBuilder();
-        stringBuilder.append(" [ ");
-        switch (this.splitStrategy) {
-            case EXACT -> {
-                for (var split : this.splitDetails) {
-                    stringBuilder.append(" { userId:")
-                            .append(split.getUserId())
-                            .append(", amount:")
-                            .append(split.getAmount()).append("},");
-                }
-            }
-            case SHARES -> {
-                for (var split : this.splitDetails) {
-                    stringBuilder.append(" { userId:")
-                            .append(split.getUserId())
-                            .append(", shares:")
-                            .append(split.getShares()).append("},");
-                }
-            }
-            case EQUAL -> {
-                for (var split : this.splitDetails) {
-                    stringBuilder.append(" { userId:")
-                            .append(split.getUserId()).append("},");
-                }
-            }
-            default -> {
-                stringBuilder.append(splitDetails.toString());
-            }
-        }
-        stringBuilder.append("]");
-        return stringBuilder.toString();
-    }
 }
