@@ -1,7 +1,6 @@
 package com.example.splitbill.user.service;
 
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
-import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.domain.Settlements;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.*;
@@ -89,103 +88,23 @@ public class UserService {
                 .build();
     }
 
-    public List<GetUserGroupsAndBalancesDto> getUserGroupsAndBalances(Long userId) {
-        var user = userRepository.findUserById(userId)
-                .orElseThrow(() -> new UserDoesNotExistsException("User doesn't exists"));
-
-        var userGroups = user.getUserGroups();
-        var result = new ArrayList<GetUserGroupsAndBalancesDto>();
-        for (UserGroup userGroup : userGroups) {
-            var balances = findBalancesForGroup(userGroup);
-            var userGroupAndBalance = GetUserGroupsAndBalancesDto.builder()
-                    .balances(balances)
-                    .groupId(userGroup.getGroup().getId())
-                    .groupName(userGroup.getGroup().getGroupName())
-                    .memberCount(userGroup.getGroup().getUsers().size())
-                    .build();
-            result.add(userGroupAndBalance);
-        }
-        return result;
-    }
-
-    private List<OwesDto> findBalancesForGroup(UserGroup userGroup) {
-        var groupId = userGroup.getGroup().getId();
-        var balances = groupBalancesRepo.findByGroupId(groupId);
-        var result = new ArrayList<OwesDto>();
-        for (var balance : balances) {
-            result.add(new OwesDto(balance.getFrom().getUsername(),
-                    balance.getTo().getUsername(), balance.getBalance()));
-        }
-        return result;
-    }
-
-    public List<TotalBalancesDto> getAllOpenBalances(Long userId) {
-        var groupBalances = groupBalancesRepo.findByFromIdOrToId(userId, userId);
-        var allBalances = new HashMap<Long, BigDecimal>();
-        var userCache = new HashMap<Long, String>();
-        Long id;
-        for (var groupBalance : groupBalances) {
-            if (groupBalance.getFrom().getId().equals(userId)) {
-                id = groupBalance.getTo().getId();
-                allBalances.put(id, allBalances.getOrDefault(id, ZERO).subtract(groupBalance.getBalance()));
-                userCache.put(id, groupBalance.getTo().getUsername());
-            } else {
-                id = groupBalance.getFrom().getId();
-                allBalances.put(id, allBalances.getOrDefault(id, ZERO).add(groupBalance.getBalance()));
-                userCache.put(id, groupBalance.getFrom().getUsername());
-            }
-        }
-        var results = new ArrayList<TotalBalancesDto>();
-        for (Map.Entry<Long, BigDecimal> entry : allBalances.entrySet()) {
-            var balance = TotalBalancesDto.builder()
-                    .userId(entry.getKey())
-                    .amount(entry.getValue().abs())
-                    .userName(userCache.get(entry.getKey()))
-                    .direction(entry.getValue().compareTo(ZERO) < 0 ? GIVE : GET)
-                    .build();
-            results.add(balance);
-        }
-        return results;
-    }
-
-    @Transactional
-    public List<TotalBalancesDto> recordPaymentForUser(SettleBalanceRequestDto requestDto) {
-        var fromUser = userRepository.findUserById(requestDto.getFromUserId())
-                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
-
-        var toUser = userRepository.findUserById(requestDto.getToUserId())
-                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
-
-        var groupBalances = groupBalancesRepo.findByFromIdAndToId(requestDto.getFromUserId(), requestDto.getToUserId());
-        groupBalances.addAll(groupBalancesRepo.findByFromIdAndToId(requestDto.getToUserId(), requestDto.getFromUserId()));
-
-        var settlement = Settlements.builder()
-                .from(fromUser)
-                .to(toUser)
-                .amount(requestDto.getAmount())
-                .build();
-        settlementsRepository.save(settlement);
-        groupBalancesRepo.deleteAll(groupBalances);
-        return getAllOpenBalances(fromUser.getId());
-    }
-
-    public List<GetUserGroupsAndBalancesDto> recordPaymentForGroup(SettleGroupBalanceRequestDto requestDto) {
-        var groupBalances = groupBalancesRepo.findByGroupIdAndFromIdAndToId(requestDto.getGroupId(),
-                        requestDto.getFromUserId(), requestDto.getToUserId())
-                .orElseThrow(() -> new RuntimeException("Invalid request"));
-
-        var from = groupBalances.getFrom().getId();
-
-        var settlement = Settlements.builder()
-                .from(groupBalances.getFrom())
-                .to(groupBalances.getTo())
-                .amount(groupBalances.getBalance())
-                .build();
-
-        settlementsRepository.save(settlement);
-        groupBalancesRepo.delete(groupBalances);
-        return getUserGroupsAndBalances(from);
-    }
+//    public List<GetUserGroupsAndBalancesDto> recordPaymentForGroup(SettleGroupBalanceRequestDto requestDto) {
+//        var groupBalances = groupBalancesRepo.findByGroupIdAndFromIdAndToId(requestDto.getGroupId(),
+//                        requestDto.getFromUserId(), requestDto.getToUserId())
+//                .orElseThrow(() -> new RuntimeException("Invalid request"));
+//
+//        var from = groupBalances.getFrom().getId();
+//
+//        var settlement = Settlements.builder()
+//                .from(groupBalances.getFrom())
+//                .to(groupBalances.getTo())
+//                .amount(groupBalances.getBalance())
+//                .build();
+//
+//        settlementsRepository.save(settlement);
+//        groupBalancesRepo.delete(groupBalances);
+//        return getUserGroupsAndBalances(from);
+//    }
 
     public UserResponseDto validate(LoginRequestDto loginRequestDto) {
         var user = userRepository.findUserByUsername(loginRequestDto.getUsername())

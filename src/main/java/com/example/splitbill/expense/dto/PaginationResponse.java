@@ -1,5 +1,4 @@
-package com.example.splitbill.group.dto.adduser;
-
+package com.example.splitbill.expense.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,9 +9,10 @@ import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
 @Data
-public class AddUserToGroupDto {
-    private List<String> userName;
-    private Long groupId;
+@Builder
+public class PaginationResponse<T> {
+    List<T> results;
+    Integer totalPages;
+    Integer totalElements;
 }

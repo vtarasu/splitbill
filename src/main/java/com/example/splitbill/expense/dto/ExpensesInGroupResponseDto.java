@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 @Data
 @Builder
@@ -18,8 +19,10 @@ public class ExpensesInGroupResponseDto {
     private String addedBy;
     private BigDecimal amount;
     private LocalDate addedAt;
+    private String expenseStrategy;
+    private List<SplitDetails> splitDetails;
 
-    public static ExpensesInGroupResponseDto from(Expense expense) {
+    public static ExpensesInGroupResponseDto from(Expense expense, List<SplitDetails> splitDetails) {
         return ExpensesInGroupResponseDto.builder()
                 .expenseId(expense.getId())
                 .groupId(expense.getGroup().getId())
@@ -29,6 +32,8 @@ public class ExpensesInGroupResponseDto {
                 .addedBy(expense.getAddedByUser().getUsername())
                 .amount(expense.getBillAmount())
                 .addedAt(expense.getExpenseDate())
+                .expenseStrategy(expense.getSplitStrategy().name())
+                .splitDetails(splitDetails)
                 .build();
     }
 }

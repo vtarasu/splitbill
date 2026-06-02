@@ -13,7 +13,11 @@ import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.group.exception.GroupAlreadyExistsException;
 import com.example.splitbill.group.exception.GroupDoesNotExistsException;
 import com.example.splitbill.group.repo.GroupRepository;
-import com.example.splitbill.user.dto.GetUserGroupsAndBalancesDto;
+import com.example.splitbill.user.dto.Direction;
+import com.example.splitbill.user.dto.GetGroupAndBalances;
+import com.example.splitbill.user.dto.OwesDto;
+import com.example.splitbill.user.dto.UserRecord;
+import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
@@ -22,7 +26,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static com.example.splitbill.user.dto.UserRole.ADMIN;
 import static com.example.splitbill.user.dto.UserRole.MEMBER;
@@ -43,7 +50,7 @@ public class GroupService {
         this.groupBalancesRepo = groupBalancesRepo;
     }
 
-    public GetUserGroupsAndBalancesDto createGroup(CreateGroupRequestDto createGroupRequestDto) {
+    public GetGroupAndBalances createGroup(CreateGroupRequestDto createGroupRequestDto) {
         var userId = Objects.requireNonNull(SecurityContextHolder.getContext().getAuthentication()).getPrincipal();
         var user = userRepository.findUserById((Long) userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("User not exists."));
@@ -76,7 +83,7 @@ public class GroupService {
         group.getUsers().addAll(userGroups);
         user.getUserGroups().addAll(userGroups);
         var savedGroup = groupRepository.save(group);
-        return GetUserGroupsAndBalancesDto.builder()
+        return GetGroupAndBalances.builder()
                 .groupId(savedGroup.getId())
                 .groupName(savedGroup.getGroupName())
                 .memberCount(groupUsers.size())
@@ -84,12 +91,22 @@ public class GroupService {
                 .build();
     }
 
-    public AddUserToGroupDto addUserToGroup(AddUserToGroupDto addUserToGroupDto) {
+    public boolean addUsersToGroup(AddUserToGroupDto addUserToGroupDto) {
         var group = groupRepository.findGroupById(addUserToGroupDto.getGroupId())
                 .orElseThrow(() -> new GroupDoesNotExistsException("Invalid Group"));
 
-        var users = addUserToGroupDto.getUserId()
-                .stream().map(id -> userRepository.findUserById(id)
+        var currentUsers = group.getUsers().stream()
+                .map(userGroup -> userGroup.getUser().getUsername())
+                .collect(Collectors.toSet());
+
+        boolean duplicate = addUserToGroupDto.getUserName().stream().anyMatch(currentUsers::contains);
+
+        if (duplicate) {
+            throw new UserAlreadyExistsException("User already part of group.");
+        }
+
+        var users = addUserToGroupDto.getUserName()
+                .stream().map(id -> userRepository.findUserByUsername(id)
                         .orElseThrow(() -> new UserDoesNotExistsException("User not exists")))
                 .toList();
 
@@ -99,32 +116,24 @@ public class GroupService {
                         .userrole(MEMBER)
                         .build())
                 .toList();
-        var savedUserGroups = userGroupRepository.saveAll(userGroups);
-        var savedUsers = savedUserGroups.stream().map(userGroup -> userGroup.getUser().getId()).toList();
-        var savedGroup = savedUserGroups.stream().map(userGroup -> userGroup.getGroup().getId()).toList();
-        return AddUserToGroupDto.builder()
-                .userId(savedUsers)
-                .groupId(savedGroup.getFirst())
-                .build();
+        userGroupRepository.saveAll(userGroups);
+        log.info("Users added successfully to group.");
+        return true;
     }
 
     @Transactional
-    public void removeUserFromGroup(RemoveUserFromGroupDto removeUserFromGroupDto) throws CannotRemoveUserException {
-        var userGroup = userGroupRepository.findByUserIdAndGroupId(removeUserFromGroupDto.getUserId(),
-                        removeUserFromGroupDto.getGroupId())
-                .orElseThrow(() -> new UserDoesNotExistsException("User/Group doesn't exist"));
-
-        var balances = groupBalancesRepo.findByGroupIdAndFromIdOrGroupIdAndToId(
-                removeUserFromGroupDto.getGroupId(), removeUserFromGroupDto.getUserId(),
-                removeUserFromGroupDto.getGroupId(), removeUserFromGroupDto.getUserId());
-
+    public void removeUsersFromGroup(RemoveUserFromGroupDto dto) throws CannotRemoveUserException {
+        var balances = groupBalancesRepo.findBalancesForUsers(dto.getGroupId(), dto.getUserId());
         if (!balances.isEmpty()) {
-            throw new CannotRemoveUserException("User with unresolved balances cannot be removed from group");
+            var blockedUsers = balances.stream()
+                            .flatMap(balance -> Stream.of(
+                                            balance.getFrom().getId(),
+                                            balance.getTo().getId()))
+                            .filter(dto.getUserId()::contains)
+                            .collect(Collectors.toSet());
+            throw new CannotRemoveUserException("Users have unresolved balances: " + blockedUsers);
         }
-
-        userGroup.getUser().getUserGroups().remove(removeUserFromGroupDto.getGroupId());
-        userGroup.getGroup().getUsers().remove(removeUserFromGroupDto.getUserId());
-        userGroupRepository.delete(userGroup);
+        userGroupRepository.deleteByGroupIdAndUserIdIn(dto.getGroupId(), dto.getUserId());
     }
 
     @Transactional
@@ -145,5 +154,39 @@ public class GroupService {
         }
         userGroupRepository.deleteByGroupId(id);
         groupRepository.delete(group);
+    }
+
+    public GetGroupAndBalances getGroupInfoAndBalances(Long groupId) {
+        var group = groupRepository.findGroupById(groupId)
+                .orElseThrow(() -> new GroupDoesNotExistsException("Invalid group id"));
+        var groupMembers = group.getUsers().stream()
+                .map(userGroup -> new UserRecord(userGroup.getUser().getId(),
+                        userGroup.getUser().getUsername()))
+                .toList();
+        var groupInfo = GetGroupAndBalances.builder()
+                .balances(findBalances(groupId))
+                .groupId(group.getId())
+                .groupName(group.getGroupName())
+                .memberCount(group.getUsers().size())
+                .members(groupMembers)
+                .build();
+        log.info("Fetched info for group={} balancesSize={}", groupInfo.getGroupName(),
+                groupInfo.getBalances().size());
+        return groupInfo;
+    }
+
+    private List<OwesDto> findBalances(Long groupId) {
+        var balances = groupBalancesRepo.findByGroupId(groupId);
+        var result = new ArrayList<OwesDto>();
+        for (var balance : balances) {
+            var owes = OwesDto.builder()
+                    .from(balance.getFrom().getUsername())
+                    .to(balance.getTo().getUsername())
+                    .amount(balance.getBalance())
+                    .direction(Direction.GIVE)
+                    .build();
+            result.add(owes);
+        }
+        return result;
     }
 }

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 @NoArgsConstructor
@@ -18,6 +19,7 @@ public class UpdateExpenseRequestDto {
     private String expenseName;
     private Long groupId;
     private Long paidByUsers;
+    private List<SplitDetails> splitDetails;
     private Map<Long, BigDecimal> usersSharingExpense;
     private Long addedByUser;
     private BigDecimal amount;

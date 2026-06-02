@@ -2,6 +2,8 @@ package com.example.splitbill.user.controller;
 
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
+import com.example.splitbill.user.service.SettlementsService;
+import com.example.splitbill.user.service.UserBalancesService;
 import com.example.splitbill.user.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -18,9 +20,13 @@ import java.util.Optional;
 @RequestMapping("/user")
 public class UserController {
     private final UserService userService;
+    private final UserBalancesService userBalancesService;
+    private final SettlementsService settlementsService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserBalancesService userBalancesService, SettlementsService settlementsService) {
         this.userService = userService;
+        this.userBalancesService = userBalancesService;
+        this.settlementsService = settlementsService;
     }
 
     @PostMapping("/register")
@@ -92,12 +98,12 @@ public class UserController {
     }
 
     @GetMapping("/groups")
-    public List<GetUserGroupsAndBalancesDto> getUserGroups() {
+    public List<GetGroupAndBalances> getUserGroups() {
         var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
                 .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
         long userId = (long) auth.getPrincipal();
         log.info("Received request to fetch groups for user={}", userId);
-        return userService.getUserGroupsAndBalances(userId);
+        return userBalancesService.getUserGroupsAndBalances(userId);
     }
 
     @GetMapping("/balances")
@@ -106,14 +112,14 @@ public class UserController {
                 .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
         long userId = (long) auth.getPrincipal();
         log.info("Received request to fetch all balances for user={}", userId);
-        return userService.getAllOpenBalances(userId);
+        return userBalancesService.getAllOpenBalancesForUser(userId);
     }
 
     @PostMapping("/settle")
     public ResponseEntity<?> settleBalance(@RequestBody SettleBalanceRequestDto requestDto) {
         log.info("Received request to settle balances. request={}", requestDto);
         try {
-            return ResponseEntity.ok(userService.recordPaymentForUser(requestDto));
+            return ResponseEntity.ok(settlementsService.recordPaymentForUser(requestDto));
         } catch (Exception e) {
             log.error("Error occurred while settling balance. request={}", requestDto, e);
             var errorResponse = ErrorResponse.builder()
@@ -126,11 +132,11 @@ public class UserController {
         }
     }
 
-    @PostMapping("/settle/groups")
-    public List<GetUserGroupsAndBalancesDto> settleGroupBalance(@RequestBody SettleGroupBalanceRequestDto requestDto) {
-        log.info("Received request to settle balance in group. request={}", requestDto);
-        return userService.recordPaymentForGroup(requestDto);
-    }
+//    @PostMapping("/settle/groups")
+//    public List<GetUserGroupsAndBalancesDto> settleGroupBalance(@RequestBody SettleGroupBalanceRequestDto requestDto) {
+//        log.info("Received request to settle balance in group. request={}", requestDto);
+//        return userService.recordPaymentForGroup(requestDto);
+//    }
 
     @GetMapping("/settlements")
     public SettlementHistoryResponseDto getUserSettlements(@RequestParam("pageno") Integer pageNumber,

@@ -5,11 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
 public class RemoveUserFromGroupDto {
-    private Long userId;
+    private List<Long> userId;
     private Long groupId;
 }

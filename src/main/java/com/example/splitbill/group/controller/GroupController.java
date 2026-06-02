@@ -36,27 +36,45 @@ public class GroupController {
         }
     }
 
+    @GetMapping("/{groupId}")
+    public ResponseEntity<?> getBalancesForGroup(@PathVariable Long groupId) {
+        try {
+            var groupAndBalances = groupService.getGroupInfoAndBalances(groupId);
+            return ResponseEntity.ok(groupAndBalances);
+        } catch (Exception e) {
+            log.error("Failed to get info for group={}", groupId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to get group info. message=" + e.getLocalizedMessage());
+        }
+    }
+
     @PostMapping("/update")
     public UpdateGroupRequestDto updateGroup(@RequestBody UpdateGroupRequestDto updateGroupRequestDto) {
         return groupService.updateGroup(updateGroupRequestDto);
     }
 
     @PostMapping("/add-user")
-    public AddUserToGroupDto addUserToGroup(@RequestBody AddUserToGroupDto addUserToGroupDto) {
-        return groupService.addUserToGroup(addUserToGroupDto);
+    public ResponseEntity<?> addUserToGroup(@RequestBody AddUserToGroupDto addUserToGroupDto) {
+        try {
+            log.info("Received request to add users to group. request={}", addUserToGroupDto);
+            groupService.addUsersToGroup(addUserToGroupDto);
+            return ResponseEntity.ok("Users added successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(e.getLocalizedMessage());
+        }
     }
 
     @PostMapping("/remove-user")
     public ResponseEntity<String> removeUserFromGroup(@RequestBody RemoveUserFromGroupDto removeUserFromGroupDto) {
         try {
-            groupService.removeUserFromGroup(removeUserFromGroupDto);
+            groupService.removeUsersFromGroup(removeUserFromGroupDto);
             return ResponseEntity.ok("Removed user from group");
         } catch (CannotRemoveUserException | Exception e) {
             log.error("Cannot remove user from group", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Cannot remove user. message=" + e.getLocalizedMessage());
         }
-
     }
 
     @DeleteMapping("/{id}")

@@ -2,6 +2,7 @@ package com.example.splitbill.expense.service.strategy;
 
 import com.example.splitbill.expense.domain.ExpenseSplit;
 import com.example.splitbill.expense.dto.AddExpenseRequestDto;
+import com.example.splitbill.expense.dto.SplitDetails;
 import com.example.splitbill.expense.service.ExpenseSplitService;
 import com.example.splitbill.user.domain.User;
 
@@ -16,15 +17,16 @@ public class SharesSplitStrategy implements ExpenseSplitService {
     @Override
     public List<ExpenseSplit> splitExpense(Map<Long, User> users, AddExpenseRequestDto addExpenseRequestDto) {
         List<ExpenseSplit> splits = new ArrayList<>();
-        var userExpenses = addExpenseRequestDto.getUsersSharingExpense();
-        var totalShares = BigDecimal.valueOf(userExpenses.values().stream().mapToInt(BigDecimal::intValue).sum());
+        var totalShares = BigDecimal.valueOf(addExpenseRequestDto.getSplitDetails().stream()
+                .mapToInt(SplitDetails::getShares)
+                .sum());
         var perShare = addExpenseRequestDto.getAmount().divide(totalShares, 2, RoundingMode.HALF_UP);
         var reminder = addExpenseRequestDto.getAmount().subtract(perShare.multiply(totalShares));
-        var paidByUser = users.get(addExpenseRequestDto.getPaidByUsers());
-        for (Long userId : addExpenseRequestDto.getUsersSharingExpense().keySet()) {
+        var paidByUser = users.get(addExpenseRequestDto.getPaidBy());
+        for (SplitDetails splitDetail : addExpenseRequestDto.getSplitDetails()) {
             var split = new ExpenseSplit();
-            split.setAmount(perShare.multiply(userExpenses.get(userId)));
-            split.setOwedBy(users.get(userId));
+            split.setAmount(perShare.multiply(BigDecimal.valueOf(splitDetail.getShares())));
+            split.setOwedBy(users.get(splitDetail.getUserId()));
             split.setPaidBy(paidByUser);
             splits.add(split);
         }
