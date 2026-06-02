@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Map;
+import java.util.List;
 import java.util.Objects;
 
 @NoArgsConstructor
@@ -16,10 +16,11 @@ import java.util.Objects;
 @Builder
 @Data
 public class AddExpenseRequestDto {
+    private Long id;
     private String expenseName;
-    private Long paidByUsers;
+    private Long paidBy;
     private Long groupId;
-    private Map<Long, BigDecimal> usersSharingExpense;
+    private List<SplitDetails> splitDetails;
     private Long addedByUser;
     private BigDecimal amount;
     private SplitStrategy splitStrategy;
@@ -35,10 +36,44 @@ public class AddExpenseRequestDto {
                 .expenseName(expenseName)
                 .addedByUser(expenseRequestDto.getAddedByUser())
                 .groupId(expenseRequestDto.getGroupId())
-                .usersSharingExpense(expenseRequestDto.getUsersSharingExpense())
-                .paidByUsers(expenseRequestDto.getPaidByUsers())
+                .splitDetails(expenseRequestDto.getSplitDetails())
+                .paidBy(expenseRequestDto.getPaidByUsers())
                 .splitStrategy(expenseRequestDto.getSplitStrategy())
                 .amount(expenseRequestDto.getAmount())
                 .build();
+    }
+
+    public String getSplitDetailsValue() {
+        var stringBuilder = new StringBuilder();
+        stringBuilder.append(" [ ");
+        switch (this.splitStrategy) {
+            case EXACT -> {
+                for (var split : this.splitDetails) {
+                    stringBuilder.append(" { userId:")
+                            .append(split.getUserId())
+                            .append(", amount:")
+                            .append(split.getAmount()).append("},");
+                }
+            }
+            case SHARES -> {
+                for (var split : this.splitDetails) {
+                    stringBuilder.append(" { userId:")
+                            .append(split.getUserId())
+                            .append(", shares:")
+                            .append(split.getShares()).append("},");
+                }
+            }
+            case EQUAL -> {
+                for (var split : this.splitDetails) {
+                    stringBuilder.append(" { userId:")
+                            .append(split.getUserId()).append("},");
+                }
+            }
+            default -> {
+                stringBuilder.append(splitDetails.toString());
+            }
+        }
+        stringBuilder.append("]");
+        return stringBuilder.toString();
     }
 }

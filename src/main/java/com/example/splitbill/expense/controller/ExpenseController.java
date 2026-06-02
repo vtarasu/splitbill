@@ -3,9 +3,8 @@ package com.example.splitbill.expense.controller;
 import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.service.ExpenseService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Slf4j
 @RestController
@@ -21,23 +20,23 @@ public class ExpenseController {
     @PostMapping("/add")
     public ExpenseResponseDto addExpense(@RequestBody AddExpenseRequestDto addExpenseRequestDto) {
         log.info("Received request to add expense for group. groupId={} expensePaidBy={} expenseSplit={}",
-                addExpenseRequestDto.getGroupId(), addExpenseRequestDto.getPaidByUsers(),
-                addExpenseRequestDto.getUsersSharingExpense());
+                addExpenseRequestDto.getGroupId(), addExpenseRequestDto.getPaidBy(),
+                addExpenseRequestDto.getSplitDetails());
         var addExpenseResponseDto = expenseService.addExpense(addExpenseRequestDto);
         log.info("Expense added successfully. response={}", addExpenseResponseDto);
         return addExpenseResponseDto;
     }
 
-    @PostMapping("/delete/{id}")
-    public ExpenseResponseDto deleteExpense(@PathVariable long id) {
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteExpense(@PathVariable long id) {
         log.info("Received request to delete expense id. id={}", id);
         var expenseResponseDto = expenseService.deleteExpense(id);
         log.info("Expense deleted successfully. id={}", id);
-        return expenseResponseDto;
+        return ResponseEntity.ok("Expense deleted successfully");
     }
 
     @PostMapping("/update")
-    public ExpenseResponseDto updateExpense(@RequestBody UpdateExpenseRequestDto expenseRequestDto) {
+    public ExpenseResponseDto updateExpense(@RequestBody AddExpenseRequestDto expenseRequestDto) {
         log.info("Received request to update expense id. id={}", expenseRequestDto.getId());
         var expenseResponseDto = expenseService.updateExpense(expenseRequestDto);
         log.info("Expense updated successfully. id={}", expenseResponseDto.getId());
@@ -53,10 +52,12 @@ public class ExpenseController {
     }
 
     @GetMapping("/group")
-    public List<ExpensesInGroupResponseDto> getExpensesInGroup(@RequestBody ExpensesInGroupRequestDto requestDto) {
-        log.info("Received request to get expenses for group. request={}", requestDto);
-        var expenses = expenseService.getExpensesInGroup(requestDto);
-        log.info("Retrieved expenses successfully. expenses={}", expenses.size());
-        return expenses;
+    public ResponseEntity<?> getExpensesInGroup(@RequestParam Long groupId,
+                                             @RequestParam Integer pageNo,
+                                             @RequestParam Integer pageSize) {
+        log.info("Received request to get expenses for group. groupId={}", groupId);
+        var expenses = expenseService.getExpensesInGroup(groupId, pageNo, pageSize);
+        log.info("Retrieved expenses successfully for group={}.", groupId);
+        return ResponseEntity.ok(expenses);
     }
 }

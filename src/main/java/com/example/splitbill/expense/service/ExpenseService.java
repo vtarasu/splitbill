@@ -8,15 +8,20 @@ import com.example.splitbill.expense.repo.ExpenseRepo;
 import com.example.splitbill.expense.service.strategy.ExpenseSplitStrategy;
 import com.example.splitbill.group.exception.GroupDoesNotExistsException;
 import com.example.splitbill.group.repo.GroupRepository;
+import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,6 +31,7 @@ public class ExpenseService {
     private final GroupBalanceService groupBalanceService;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ExpenseService(ExpenseRepo expenseRepo, GroupBalanceService groupBalanceService, GroupRepository groupRepository, UserRepository userRepository) {
         this.expenseRepo = expenseRepo;
@@ -39,31 +45,28 @@ public class ExpenseService {
         var group = groupRepository.findGroupById(addExpenseRequestDto.getGroupId())
                 .orElseThrow(() -> new GroupDoesNotExistsException("Invalid group id received"));
 
-        var addedByUser = userRepository.findUserById(addExpenseRequestDto.getAddedByUser())
+        var addedBy = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var addedByUser = userRepository.findUserById((Long) addedBy)
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"));
 
-        var paidByUser = userRepository.findUserById(addExpenseRequestDto.getPaidByUsers())
+        var paidByUser = userRepository.findUserById(addExpenseRequestDto.getPaidBy())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"));
 
-        var users = addExpenseRequestDto.getUsersSharingExpense().entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> userRepository.findUserById(entry.getKey())
-                                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"))
-                ));
+        Set<Long> userIds = addExpenseRequestDto.getSplitDetails().stream()
+                .map(SplitDetails::getUserId)
+                .collect(Collectors.toSet());
 
-        users.put(paidByUser.getId(), paidByUser);
-        users.put(addedByUser.getId(), addedByUser);
+        var users = userRepository.findAllById(userIds);
+        Map<Long, User> usersById = users.stream()
+                .collect(Collectors.toMap(User::getId, Function.identity()));
 
+        usersById.put(paidByUser.getId(), paidByUser);
+        usersById.put(addedByUser.getId(), addedByUser);
         var splits = ExpenseSplitStrategy.getExpenseSplitStrategy(addExpenseRequestDto.getSplitStrategy())
-                .splitExpense(users, addExpenseRequestDto);
+                .splitExpense(usersById, addExpenseRequestDto);
 
         log.info("Expense splits computed successfully for expenseId={}.", addExpenseRequestDto.getGroupId());
-        var splitDetails = addExpenseRequestDto.getUsersSharingExpense().toString();
-        if (addExpenseRequestDto.getSplitStrategy().equals(SplitStrategy.EQUAL)) {
-            splitDetails = addExpenseRequestDto.getUsersSharingExpense().keySet().toString();
-        }
-
+        var splitDetails = objectMapper.writeValueAsString(addExpenseRequestDto.getSplitDetails());
         Expense expense = Expense.builder()
                 .expense(addExpenseRequestDto.getExpenseName())
                 .addedByUser(addedByUser)
@@ -84,51 +87,38 @@ public class ExpenseService {
     }
 
     @Transactional
-    public List<ExpensesInGroupResponseDto> getExpensesInGroup(ExpensesInGroupRequestDto getExpensesRequestDto) {
-        var pageable = PageRequest.of(getExpensesRequestDto.getPageNo(), getExpensesRequestDto.getPageSize(),
-                Sort.by("expenseDate").descending());
-        var expenses = expenseRepo.findAllByGroupId(getExpensesRequestDto.getGroupId(), pageable);
-        return expenses.stream().map(ExpensesInGroupResponseDto::from).toList();
+    public PaginationResponse<ExpensesInGroupResponseDto> getExpensesInGroup(Long groupId, Integer pageNo, Integer pageSize) {
+        var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate").descending());
+        var expenses = expenseRepo.findAllByGroupId(groupId, pageable);
+        var expensesList = expenses.stream().map(expense -> {
+            var splitDetails = objectMapper.readValue(expense.getSplitDetails(),
+                    new TypeReference<List<SplitDetails>>() {
+                    });
+            return ExpensesInGroupResponseDto.from(expense, splitDetails);
+        }).toList();
+        return PaginationResponse.<ExpensesInGroupResponseDto>builder()
+                .totalElements(expenses.getNumberOfElements())
+                .totalPages(expenses.getTotalPages())
+                .results(expensesList)
+                .build();
     }
 
-    public ExpenseResponseDto deleteExpense(long id) {
+    public Boolean deleteExpense(long id) {
         var expense = expenseRepo.findById(id).orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid expense"));
         var splits = expense.getSplit();
         expenseRepo.delete(expense);
         var groupBalances = groupBalanceService.reverseBalances(expense.getGroup(), splits);
         log.info("Expense deleted successfully and group balances updated. expense={}", expense.getId());
-        return ExpenseResponseDto.from(id, groupBalances);
+        return true;
     }
 
     @Transactional
-    public ExpenseResponseDto updateExpense(UpdateExpenseRequestDto expenseRequestDto) {
+    public ExpenseResponseDto updateExpense(AddExpenseRequestDto expenseRequestDto) {
         var expense = expenseRepo.findById(expenseRequestDto.getId())
                 .orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid expense id."));
-        List<GroupBalances> groupBalances = new ArrayList<>();
-        if (!expenseRequestDto.isAmountUpdateRequire()) {
-            updateExpenseMetaData(expense, expenseRequestDto);
-            groupBalances = groupBalanceService.findBalanceForGroupId(expense.getGroup().getId());
-            return ExpenseResponseDto.from(expense.getId(), groupBalances);
-        } else {
-            var addExpenseDto = AddExpenseRequestDto.from(expense, expenseRequestDto);
-            deleteExpense(expense.getId());
-            log.info("Existing expense deleted successfully. id={}", expense.getId());
-            return addExpense(addExpenseDto);
-        }
-    }
-
-    @Transactional
-    private void updateExpenseMetaData(Expense expense, UpdateExpenseRequestDto expenseRequestDto) {
-        if (Objects.nonNull(expenseRequestDto.getExpenseDate()) &&
-                !expenseRequestDto.getExpenseDate().isEqual(expenseRequestDto.getExpenseDate())) {
-            expense.setExpenseDate(expenseRequestDto.getExpenseDate());
-        }
-
-        if (Objects.nonNull(expenseRequestDto.getExpenseName()) &&
-                !expenseRequestDto.getExpenseName().equals(expense.getExpense())) {
-            expense.setExpense(expenseRequestDto.getExpenseName());
-        }
-        expenseRepo.save(expense);
+        deleteExpense(expense.getId());
+        log.info("Existing expense deleted successfully. id={}", expense.getId());
+        return addExpense(expenseRequestDto);
     }
 
     public ExpenseDetailsDto getExpenseById(Long id) {

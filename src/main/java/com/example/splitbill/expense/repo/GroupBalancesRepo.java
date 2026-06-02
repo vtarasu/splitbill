@@ -21,5 +21,13 @@ public interface GroupBalancesRepo extends JpaRepository<GroupBalances, Long> {
 
     List<GroupBalances> findByFromIdAndToId(Long fromUserId, Long toUserId);
 
-    Boolean existsByGroupId(Long id);
+    List<GroupBalances> findByGroupIdAndFromId(Long groupId, Long fromId);
+
+    List<GroupBalances> findByGroupIdAndToId(Long groupId, Long toId);
+
+    @Query("""
+       SELECT gb FROM GroupBalances gb
+       WHERE gb.group.id = :groupId AND ( gb.from.id IN :userIds OR gb.to.id IN :userIds )
+       """)
+    List<GroupBalances> findBalancesForUsers(Long groupId, List<Long> userIds);
 }
