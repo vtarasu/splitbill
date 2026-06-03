@@ -1,6 +1,5 @@
 package com.example.splitbill.user.service;
 
-import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.InvalidCredentialsException;
@@ -20,14 +19,13 @@ import java.util.*;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-    private final GroupBalancesRepo groupBalancesRepo;
     private final SettlementsRepository settlementsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public UserService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo, SettlementsRepository settlementsRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public UserService(UserRepository userRepository, SettlementsRepository settlementsRepository,
+                       PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
-        this.groupBalancesRepo = groupBalancesRepo;
         this.settlementsRepository = settlementsRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
