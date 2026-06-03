@@ -18,7 +18,7 @@ public class ExpensesInGroupResponseDto {
     private String paidBy;
     private String addedBy;
     private BigDecimal amount;
-    private LocalDate addedAt;
+    private LocalDate expenseDate;
     private String expenseStrategy;
     private List<SplitDetails> splitDetails;
 
@@ -31,7 +31,7 @@ public class ExpensesInGroupResponseDto {
                 .paidBy(expense.getPaidByUser().getUsername())
                 .addedBy(expense.getAddedByUser().getUsername())
                 .amount(expense.getBillAmount())
-                .addedAt(expense.getExpenseDate())
+                .expenseDate(expense.getExpenseDate())
                 .expenseStrategy(expense.getSplitStrategy().name())
                 .splitDetails(splitDetails)
                 .build();

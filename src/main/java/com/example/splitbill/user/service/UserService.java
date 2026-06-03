@@ -1,7 +1,6 @@
 package com.example.splitbill.user.service;
 
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
-import com.example.splitbill.user.domain.Settlements;
 import com.example.splitbill.user.domain.User;
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.InvalidCredentialsException;
@@ -16,12 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.*;
-
-import static com.example.splitbill.user.dto.Direction.GET;
-import static com.example.splitbill.user.dto.Direction.GIVE;
-import static java.math.BigDecimal.ZERO;
 
 @Service
 public class UserService {
@@ -87,24 +81,6 @@ public class UserService {
                 .id(user.getId())
                 .build();
     }
-
-//    public List<GetUserGroupsAndBalancesDto> recordPaymentForGroup(SettleGroupBalanceRequestDto requestDto) {
-//        var groupBalances = groupBalancesRepo.findByGroupIdAndFromIdAndToId(requestDto.getGroupId(),
-//                        requestDto.getFromUserId(), requestDto.getToUserId())
-//                .orElseThrow(() -> new RuntimeException("Invalid request"));
-//
-//        var from = groupBalances.getFrom().getId();
-//
-//        var settlement = Settlements.builder()
-//                .from(groupBalances.getFrom())
-//                .to(groupBalances.getTo())
-//                .amount(groupBalances.getBalance())
-//                .build();
-//
-//        settlementsRepository.save(settlement);
-//        groupBalancesRepo.delete(groupBalances);
-//        return getUserGroupsAndBalances(from);
-//    }
 
     public UserResponseDto validate(LoginRequestDto loginRequestDto) {
         var user = userRepository.findUserByUsername(loginRequestDto.getUsername())

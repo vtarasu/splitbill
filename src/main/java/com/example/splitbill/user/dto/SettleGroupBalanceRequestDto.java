@@ -11,7 +11,7 @@ import java.math.BigDecimal;
 @Builder
 public class SettleGroupBalanceRequestDto {
     Long groupId;
-    Long fromUserId;
-    Long toUserId;
+    String from;
+    String to;
     BigDecimal amount;
 }

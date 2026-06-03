@@ -1,7 +1,6 @@
 package com.example.splitbill.expense.service;
 
 import com.example.splitbill.expense.domain.Expense;
-import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.exception.ExpenseDoesNotExistsException;
 import com.example.splitbill.expense.repo.ExpenseRepo;
@@ -65,7 +64,7 @@ public class ExpenseService {
         var splits = ExpenseSplitStrategy.getExpenseSplitStrategy(addExpenseRequestDto.getSplitStrategy())
                 .splitExpense(usersById, addExpenseRequestDto);
 
-        log.info("Expense splits computed successfully for expenseId={}.", addExpenseRequestDto.getGroupId());
+        log.info("Expense splits computed successfully");
         var splitDetails = objectMapper.writeValueAsString(addExpenseRequestDto.getSplitDetails());
         Expense expense = Expense.builder()
                 .expense(addExpenseRequestDto.getExpenseName())
@@ -83,12 +82,12 @@ public class ExpenseService {
         var savedExpense = expenseRepo.save(expense);
         var groupBalances = groupBalanceService.updateGroupBalance(group, splits);
         log.info("Expense saved successfully and group balances updated. savedExpense={}", savedExpense.getId());
-        return ExpenseResponseDto.from(expense.getId(), groupBalances);
+        return ExpenseResponseDto.from(expense.getId(), group, groupBalances);
     }
 
     @Transactional
     public PaginationResponse<ExpensesInGroupResponseDto> getExpensesInGroup(Long groupId, Integer pageNo, Integer pageSize) {
-        var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate").descending());
+        var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate", "dateAddedAt").descending());
         var expenses = expenseRepo.findAllByGroupId(groupId, pageable);
         var expensesList = expenses.stream().map(expense -> {
             var splitDetails = objectMapper.readValue(expense.getSplitDetails(),

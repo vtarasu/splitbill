@@ -132,11 +132,18 @@ public class UserController {
         }
     }
 
-//    @PostMapping("/settle/groups")
-//    public List<GetUserGroupsAndBalancesDto> settleGroupBalance(@RequestBody SettleGroupBalanceRequestDto requestDto) {
-//        log.info("Received request to settle balance in group. request={}", requestDto);
-//        return userService.recordPaymentForGroup(requestDto);
-//    }
+    @PostMapping("/settle/group")
+    public ResponseEntity<?> settleGroupBalance(@RequestBody SettleGroupBalanceRequestDto requestDto) {
+        try {
+            log.info("Received request to settle balance in group. request={}", requestDto);
+            settlementsService.recordPaymentForGroup(requestDto);
+            return ResponseEntity.ok("Balance settled successfully");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Unable to settle balance in group. error="+e.getLocalizedMessage());
+        }
+
+    }
 
     @GetMapping("/settlements")
     public SettlementHistoryResponseDto getUserSettlements(@RequestParam("pageno") Integer pageNumber,
