@@ -30,18 +30,21 @@ public class ExpenseService {
     private final GroupBalanceService groupBalanceService;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final NonGroupBalanceService nonGroupBalanceService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public ExpenseService(ExpenseRepo expenseRepo, GroupBalanceService groupBalanceService, GroupRepository groupRepository, UserRepository userRepository) {
+    public ExpenseService(ExpenseRepo expenseRepo, GroupBalanceService groupBalanceService, GroupRepository groupRepository, UserRepository userRepository, NonGroupBalanceService nonGroupBalanceService) {
         this.expenseRepo = expenseRepo;
         this.groupBalanceService = groupBalanceService;
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
+        this.nonGroupBalanceService = nonGroupBalanceService;
     }
 
     @Transactional
     public ExpenseResponseDto addExpense(AddExpenseRequestDto addExpenseRequestDto) {
-        var group = groupRepository.findGroupById(addExpenseRequestDto.getGroupId())
+        var group = Objects.isNull(addExpenseRequestDto.getGroupId()) ? null :
+                groupRepository.findGroupById(addExpenseRequestDto.getGroupId())
                 .orElseThrow(() -> new GroupDoesNotExistsException("Invalid group id received"));
 
         var addedBy = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -80,22 +83,29 @@ public class ExpenseService {
 
         splits.forEach(expenseSplit -> expenseSplit.setExpense(expense));
         var savedExpense = expenseRepo.save(expense);
-        var groupBalances = groupBalanceService.updateGroupBalance(group, splits);
+        ExpenseResponseDto expenseResponseDto;
+        if (Objects.isNull(group)) {
+            var balances = nonGroupBalanceService.updateBalance(addedByUser.getId(), splits);
+            expenseResponseDto = ExpenseResponseDto.from(expense.getId(), balances);
+        } else {
+            var balances = groupBalanceService.updateGroupBalance(group, splits);
+            expenseResponseDto = ExpenseResponseDto.from(expense.getId(), group, balances);
+        }
         log.info("Expense saved successfully and group balances updated. savedExpense={}", savedExpense.getId());
-        return ExpenseResponseDto.from(expense.getId(), group, groupBalances);
+        return expenseResponseDto;
     }
 
     @Transactional
-    public PaginationResponse<ExpensesInGroupResponseDto> getExpensesInGroup(Long groupId, Integer pageNo, Integer pageSize) {
+    public PaginationResponse<GetAllExpensesResponseDto> getExpensesInGroup(Long groupId, Integer pageNo, Integer pageSize) {
         var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate", "dateAddedAt").descending());
         var expenses = expenseRepo.findAllByGroupId(groupId, pageable);
         var expensesList = expenses.stream().map(expense -> {
             var splitDetails = objectMapper.readValue(expense.getSplitDetails(),
                     new TypeReference<List<SplitDetails>>() {
                     });
-            return ExpensesInGroupResponseDto.from(expense, splitDetails);
+            return GetAllExpensesResponseDto.from(expense, splitDetails);
         }).toList();
-        return PaginationResponse.<ExpensesInGroupResponseDto>builder()
+        return PaginationResponse.<GetAllExpensesResponseDto>builder()
                 .totalElements(expenses.getNumberOfElements())
                 .totalPages(expenses.getTotalPages())
                 .results(expensesList)
@@ -106,8 +116,13 @@ public class ExpenseService {
         var expense = expenseRepo.findById(id).orElseThrow(() -> new ExpenseDoesNotExistsException("Invalid expense"));
         var splits = expense.getSplit();
         expenseRepo.delete(expense);
-        var groupBalances = groupBalanceService.reverseBalances(expense.getGroup(), splits);
-        log.info("Expense deleted successfully and group balances updated. expense={}", expense.getId());
+        if (Objects.isNull(expense.getGroup())) {
+            var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            nonGroupBalanceService.reverseBalance((Long) userId, splits);
+        } else {
+            groupBalanceService.reverseBalances(expense.getGroup(), splits);
+        }
+        log.info("Expense deleted successfully and balances updated. expense={}", expense.getId());
         return true;
     }
 
@@ -133,7 +148,7 @@ public class ExpenseService {
                         .amount(expenseSplit.getAmount())
                         .build())
                 .toList();
-
+        var groupName = Objects.isNull(expense.getGroup()) ? "" : expense.getGroup().getGroupName();
         return ExpenseDetailsDto.builder()
                 .id(id)
                 .expenseName(expense.getExpense())
@@ -141,9 +156,27 @@ public class ExpenseService {
                 .addedBy(expense.getAddedByUser().getUsername())
                 .expenseDate(expense.getExpenseDate())
                 .billAmount(expense.getBillAmount())
-                .groupName(expense.getGroup().getGroupName())
+                .groupName(groupName)
                 .splitStrategy(expense.getSplitStrategy())
                 .expenseSplit(splitDetails)
+                .build();
+    }
+
+    public PaginationResponse<GetAllExpensesResponseDto> getNonGroupExpenses(Long userId,
+                                                                             Integer pageNo,
+                                                                             Integer pageSize) {
+        var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate", "dateAddedAt").descending());
+        var expenses = expenseRepo.findAllNonGroupExpensesForUser(userId, pageable);
+        var expensesList = expenses.stream().map(expense -> {
+            var splitDetails = objectMapper.readValue(expense.getSplitDetails(),
+                    new TypeReference<List<SplitDetails>>() {
+                    });
+            return GetAllExpensesResponseDto.from(expense, splitDetails);
+        }).toList();
+        return PaginationResponse.<GetAllExpensesResponseDto>builder()
+                .totalElements(expenses.getNumberOfElements())
+                .totalPages(expenses.getTotalPages())
+                .results(expensesList)
                 .build();
     }
 }

@@ -7,10 +7,11 @@ import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 
 @Data
 @Builder
-public class ExpensesInGroupResponseDto {
+public class GetAllExpensesResponseDto {
     private Long expenseId;
     private String description;
     private Long groupId;
@@ -22,11 +23,13 @@ public class ExpensesInGroupResponseDto {
     private String expenseStrategy;
     private List<SplitDetails> splitDetails;
 
-    public static ExpensesInGroupResponseDto from(Expense expense, List<SplitDetails> splitDetails) {
-        return ExpensesInGroupResponseDto.builder()
+    public static GetAllExpensesResponseDto from(Expense expense, List<SplitDetails> splitDetails) {
+        var groupId = Objects.isNull(expense.getGroup()) ? null : expense.getGroup().getId();
+        var groupName = Objects.isNull(expense.getGroup()) ? "" : expense.getGroup().getGroupName();
+        return GetAllExpensesResponseDto.builder()
                 .expenseId(expense.getId())
-                .groupId(expense.getGroup().getId())
-                .groupName(expense.getGroup().getGroupName())
+                .groupId(groupId)
+                .groupName(groupName)
                 .description(expense.getExpense())
                 .paidBy(expense.getPaidByUser().getUsername())
                 .addedBy(expense.getAddedByUser().getUsername())

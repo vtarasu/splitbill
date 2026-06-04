@@ -4,6 +4,7 @@ import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.service.ExpenseService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -58,6 +59,16 @@ public class ExpenseController {
         log.info("Received request to get expenses for group. groupId={}", groupId);
         var expenses = expenseService.getExpensesInGroup(groupId, pageNo, pageSize);
         log.info("Retrieved expenses successfully for group={}.", groupId);
+        return ResponseEntity.ok(expenses);
+    }
+
+    @GetMapping("/nongroup")
+    public ResponseEntity<?> getNonGroupExpenses(@RequestParam Integer pageNo,
+                                                @RequestParam Integer pageSize) {
+        var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        log.info("Received request to get non group expenses for userId={}", userId);
+        var expenses = expenseService.getNonGroupExpenses((Long) userId, pageNo, pageSize);
+        log.info("Retrieved non group expenses successfully.");
         return ResponseEntity.ok(expenses);
     }
 }

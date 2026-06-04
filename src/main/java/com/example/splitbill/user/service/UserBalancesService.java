@@ -1,6 +1,7 @@
 package com.example.splitbill.user.service;
 
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
+import com.example.splitbill.expense.repo.NonGroupBalanceRepo;
 import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.user.dto.Direction;
 import com.example.splitbill.user.dto.GetGroupAndBalances;
@@ -26,10 +27,14 @@ import static java.math.BigDecimal.ZERO;
 public class UserBalancesService {
     private final UserRepository userRepository;
     private final GroupBalancesRepo groupBalancesRepo;
+    private final NonGroupBalanceRepo nonGroupBalanceRepo;
 
-    public UserBalancesService(UserRepository userRepository, GroupBalancesRepo groupBalancesRepo) {
+    public UserBalancesService(UserRepository userRepository,
+                               GroupBalancesRepo groupBalancesRepo,
+                               NonGroupBalanceRepo nonGroupBalanceRepo) {
         this.userRepository = userRepository;
         this.groupBalancesRepo = groupBalancesRepo;
+        this.nonGroupBalanceRepo = nonGroupBalanceRepo;
     }
 
     public List<GetGroupAndBalances> getUserGroupsAndBalances(Long userId) {
@@ -93,9 +98,11 @@ public class UserBalancesService {
 
     public List<TotalBalancesDto> getAllOpenBalancesForUser(Long userId) {
         var groupBalances = groupBalancesRepo.findByFromIdOrToId(userId, userId);
+        var nonGroupBalances = nonGroupBalanceRepo.findByFromIdOrToId(userId, userId);
         var allBalances = new HashMap<Long, BigDecimal>();
         var userCache = new HashMap<Long, String>();
         Long id;
+
         for (var groupBalance : groupBalances) {
             if (groupBalance.getFrom().getId().equals(userId)) {
                 id = groupBalance.getTo().getId();
@@ -107,6 +114,19 @@ public class UserBalancesService {
                 userCache.put(id, groupBalance.getFrom().getUsername());
             }
         }
+
+        for (var nonGroupBalance : nonGroupBalances) {
+            if (nonGroupBalance.getFrom().getId().equals(userId)) {
+                id = nonGroupBalance.getTo().getId();
+                allBalances.put(id, allBalances.getOrDefault(id, ZERO).subtract(nonGroupBalance.getBalance()));
+                userCache.put(id, nonGroupBalance.getTo().getUsername());
+            } else {
+                id = nonGroupBalance.getFrom().getId();
+                allBalances.put(id, allBalances.getOrDefault(id, ZERO).add(nonGroupBalance.getBalance()));
+                userCache.put(id, nonGroupBalance.getFrom().getUsername());
+            }
+        }
+
         var results = new ArrayList<TotalBalancesDto>();
         for (Map.Entry<Long, BigDecimal> entry : allBalances.entrySet()) {
             var balance = TotalBalancesDto.builder()
