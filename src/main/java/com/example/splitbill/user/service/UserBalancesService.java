@@ -1,5 +1,6 @@
 package com.example.splitbill.user.service;
 
+import com.example.splitbill.expense.domain.NonGroupBalance;
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
 import com.example.splitbill.expense.repo.NonGroupBalanceRepo;
 import com.example.splitbill.group.domain.UserGroup;
@@ -139,5 +140,30 @@ public class UserBalancesService {
         }
         log.info("Fetched all open balances for user={} balancesCount={}", userId, results.size());
         return results;
+    }
+
+    public List<TotalBalancesDto> getNonGroupBalances(long userId) {
+        var balances =  nonGroupBalanceRepo.findByFromIdOrToId(userId, userId);
+        var result = new ArrayList<TotalBalancesDto>();
+        for (NonGroupBalance balance : balances) {
+            TotalBalancesDto tmpBalance;
+            if (balance.getFrom().getId().equals(userId)) {
+                tmpBalance = TotalBalancesDto.builder()
+                        .userName(balance.getTo().getUsername())
+                        .userId(balance.getTo().getId())
+                        .amount(balance.getBalance())
+                        .direction(GIVE)
+                        .build();
+            } else {
+                tmpBalance = TotalBalancesDto.builder()
+                        .userName(balance.getFrom().getUsername())
+                        .userId(balance.getFrom().getId())
+                        .amount(balance.getBalance())
+                        .direction(GET)
+                        .build();
+            }
+            result.add(tmpBalance);
+        }
+        return result;
     }
 }

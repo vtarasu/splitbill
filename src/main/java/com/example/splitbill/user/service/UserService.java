@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -144,5 +145,16 @@ public class UserService {
         var newPassword = passwordEncoder.encode(updatePasswordDto.getNewPassword());
         user.setPassword(newPassword);
         userRepository.save(user);
+    }
+
+    public List<UserRecord> getUserDetails(List<String> userNames) {
+        var users = userRepository.findUserByUsernameIn(userNames);
+        if (users.size() != userNames.size()) {
+            var validUsers = users.stream().map(User::getUsername).collect(Collectors.toSet());
+            var invalidUsers = userNames.stream().filter(username -> !validUsers.contains(username)).toList();
+            throw new UserDoesNotExistsException("Invalid usernames: "+ String.join(",", invalidUsers));
+        }
+        return users.stream().map(user -> new UserRecord(user.getId(), user.getUsername()))
+                .toList();
     }
 }

@@ -6,6 +6,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -21,11 +22,23 @@ public class GetAllExpensesResponseDto {
     private BigDecimal amount;
     private LocalDate expenseDate;
     private String expenseStrategy;
+    private ExpenseType expenseType;
     private List<SplitDetails> splitDetails;
 
-    public static GetAllExpensesResponseDto from(Expense expense, List<SplitDetails> splitDetails) {
+    public static GetAllExpensesResponseDto from(Expense expense) {
         var groupId = Objects.isNull(expense.getGroup()) ? null : expense.getGroup().getId();
         var groupName = Objects.isNull(expense.getGroup()) ? "" : expense.getGroup().getGroupName();
+        var splitDetails = new ArrayList<SplitDetails>();
+        for (var expenseSplit : expense.getSplit()) {
+            var split = SplitDetails.builder()
+                    .userId(expenseSplit.getOwedBy().getId())
+                    .userName(expenseSplit.getOwedBy().getUsername())
+                    .amount(expenseSplit.getAmount())
+                    .shares(Objects.nonNull(expenseSplit.getMetadata()) ?
+                            Integer.parseInt(expenseSplit.getMetadata()) : null)
+                    .build();
+            splitDetails.add(split);
+        }
         return GetAllExpensesResponseDto.builder()
                 .expenseId(expense.getId())
                 .groupId(groupId)
@@ -35,6 +48,7 @@ public class GetAllExpensesResponseDto {
                 .addedBy(expense.getAddedByUser().getUsername())
                 .amount(expense.getBillAmount())
                 .expenseDate(expense.getExpenseDate())
+                .expenseType(expense.getExpenseType())
                 .expenseStrategy(expense.getSplitStrategy().name())
                 .splitDetails(splitDetails)
                 .build();

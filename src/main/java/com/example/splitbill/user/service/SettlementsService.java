@@ -3,6 +3,7 @@ package com.example.splitbill.user.service;
 import com.example.splitbill.expense.domain.GroupBalances;
 import com.example.splitbill.expense.domain.NonGroupBalance;
 import com.example.splitbill.expense.dto.AddExpenseRequestDto;
+import com.example.splitbill.expense.dto.ExpenseType;
 import com.example.splitbill.expense.dto.SplitDetails;
 import com.example.splitbill.expense.dto.SplitStrategy;
 import com.example.splitbill.expense.repo.GroupBalancesRepo;
@@ -89,7 +90,7 @@ public class SettlementsService {
         var result = new ArrayList<AddExpenseRequestDto>();
         for (GroupBalances balances : groupBalances) {
             var split = new ArrayList<SplitDetails>();
-            split.add(new SplitDetails(balances.getTo().getId(), balances.getBalance(), null));
+            split.add(new SplitDetails(balances.getTo().getId(), balances.getBalance()));
             var expense = AddExpenseRequestDto.builder()
                     .expenseName("Settlement")
                     .groupId(balances.getGroup().getId())
@@ -99,6 +100,7 @@ public class SettlementsService {
                     .splitStrategy(SplitStrategy.EXACT)
                     .amount(balances.getBalance())
                     .splitDetails(split)
+                    .expenseType(ExpenseType.SETTLEMENT)
                     .build();
             result.add(expense);
         }
@@ -108,13 +110,14 @@ public class SettlementsService {
     private AddExpenseRequestDto convertBalanceToExpense(Long userId, NonGroupBalance balance) {
 
             var split = new ArrayList<SplitDetails>();
-            split.add(new SplitDetails(balance.getTo().getId(), balance.getBalance(), null));
+            split.add(new SplitDetails(balance.getTo().getId(), balance.getBalance()));
         return AddExpenseRequestDto.builder()
                 .expenseName("Settlement")
                 .expenseDate(LocalDate.now())
                 .paidBy(balance.getFrom().getId())
                 .addedByUser(userId)
                 .splitStrategy(SplitStrategy.EXACT)
+                .expenseType(ExpenseType.SETTLEMENT)
                 .amount(balance.getBalance())
                 .splitDetails(split)
                 .build();

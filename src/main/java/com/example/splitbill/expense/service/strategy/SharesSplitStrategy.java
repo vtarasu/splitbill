@@ -28,6 +28,7 @@ public class SharesSplitStrategy implements ExpenseSplitService {
             split.setAmount(perShare.multiply(BigDecimal.valueOf(splitDetail.getShares())));
             split.setOwedBy(users.get(splitDetail.getUserId()));
             split.setPaidBy(paidByUser);
+            split.setMetadata(String.valueOf(splitDetail.getShares()));
             splits.add(split);
         }
         if (reminder.compareTo(BigDecimal.ZERO) != 0) {

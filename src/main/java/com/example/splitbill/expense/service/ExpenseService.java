@@ -16,8 +16,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.*;
 import java.util.function.Function;
@@ -31,7 +29,6 @@ public class ExpenseService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final NonGroupBalanceService nonGroupBalanceService;
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ExpenseService(ExpenseRepo expenseRepo, GroupBalanceService groupBalanceService, GroupRepository groupRepository, UserRepository userRepository, NonGroupBalanceService nonGroupBalanceService) {
         this.expenseRepo = expenseRepo;
@@ -68,7 +65,8 @@ public class ExpenseService {
                 .splitExpense(usersById, addExpenseRequestDto);
 
         log.info("Expense splits computed successfully");
-        var splitDetails = objectMapper.writeValueAsString(addExpenseRequestDto.getSplitDetails());
+        var expenseType = addExpenseRequestDto.getExpenseType() != null ?
+                addExpenseRequestDto.getExpenseType() : ExpenseType.EXPENSE;
         Expense expense = Expense.builder()
                 .expense(addExpenseRequestDto.getExpenseName())
                 .addedByUser(addedByUser)
@@ -77,8 +75,8 @@ public class ExpenseService {
                 .expenseDate(addExpenseRequestDto.getExpenseDate())
                 .billAmount(addExpenseRequestDto.getAmount())
                 .splitStrategy(addExpenseRequestDto.getSplitStrategy())
+                .expenseType(expenseType)
                 .split(splits)
-                .splitDetails(splitDetails)
                 .build();
 
         splits.forEach(expenseSplit -> expenseSplit.setExpense(expense));
@@ -99,12 +97,7 @@ public class ExpenseService {
     public PaginationResponse<GetAllExpensesResponseDto> getExpensesInGroup(Long groupId, Integer pageNo, Integer pageSize) {
         var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate", "dateAddedAt").descending());
         var expenses = expenseRepo.findAllByGroupId(groupId, pageable);
-        var expensesList = expenses.stream().map(expense -> {
-            var splitDetails = objectMapper.readValue(expense.getSplitDetails(),
-                    new TypeReference<List<SplitDetails>>() {
-                    });
-            return GetAllExpensesResponseDto.from(expense, splitDetails);
-        }).toList();
+        var expensesList = expenses.stream().map(GetAllExpensesResponseDto::from).toList();
         return PaginationResponse.<GetAllExpensesResponseDto>builder()
                 .totalElements(expenses.getNumberOfElements())
                 .totalPages(expenses.getTotalPages())
@@ -167,12 +160,7 @@ public class ExpenseService {
                                                                              Integer pageSize) {
         var pageable = PageRequest.of(pageNo, pageSize, Sort.by("expenseDate", "dateAddedAt").descending());
         var expenses = expenseRepo.findAllNonGroupExpensesForUser(userId, pageable);
-        var expensesList = expenses.stream().map(expense -> {
-            var splitDetails = objectMapper.readValue(expense.getSplitDetails(),
-                    new TypeReference<List<SplitDetails>>() {
-                    });
-            return GetAllExpensesResponseDto.from(expense, splitDetails);
-        }).toList();
+        var expensesList = expenses.stream().map(GetAllExpensesResponseDto::from).toList();
         return PaginationResponse.<GetAllExpensesResponseDto>builder()
                 .totalElements(expenses.getNumberOfElements())
                 .totalPages(expenses.getTotalPages())

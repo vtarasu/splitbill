@@ -29,6 +29,8 @@ public class ExpenseSplit {
 
     private BigDecimal amount;
 
+    private String metadata;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "expense_id")
     private Expense expense;

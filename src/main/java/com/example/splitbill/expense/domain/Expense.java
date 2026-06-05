@@ -1,5 +1,6 @@
 package com.example.splitbill.expense.domain;
 
+import com.example.splitbill.expense.dto.ExpenseType;
 import com.example.splitbill.expense.dto.SplitStrategy;
 import com.example.splitbill.group.domain.Group;
 import com.example.splitbill.user.domain.User;
@@ -39,7 +40,7 @@ public class Expense {
     private LocalDate expenseDate;
     private String expense;
     private SplitStrategy splitStrategy;
-    private String splitDetails;
+    private ExpenseType expenseType;
 
     @CreationTimestamp
     private LocalDateTime dateAddedAt;

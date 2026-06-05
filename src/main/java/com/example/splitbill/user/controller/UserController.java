@@ -97,6 +97,20 @@ public class UserController {
         return userService.getUser(userId);
     }
 
+    @PostMapping("/details")
+    public ResponseEntity<?> getUserIdForUserNames(@RequestBody List<String> userNames) {
+        try {
+            log.info("Received request to fetch user details for userNames={}", userNames);
+            var result = userService.getUserDetails(userNames);
+            log.info("Fetched user details. result={}", result);
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(e.getMessage());
+        }
+    }
+
+
     @GetMapping("/groups")
     public List<GetGroupAndBalances> getUserGroups() {
         var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
@@ -113,6 +127,15 @@ public class UserController {
         long userId = (long) auth.getPrincipal();
         log.info("Received request to fetch all balances for user={}", userId);
         return userBalancesService.getAllOpenBalancesForUser(userId);
+    }
+
+    @GetMapping("/nongroup/balances")
+    public List<TotalBalancesDto> getNonGroupBalances() {
+        var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
+        long userId = (long) auth.getPrincipal();
+        log.info("Received request to fetch all balances for user={}", userId);
+        return userBalancesService.getNonGroupBalances(userId);
     }
 
     @PostMapping("/settle")

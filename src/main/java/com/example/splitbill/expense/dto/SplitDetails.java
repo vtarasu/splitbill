@@ -15,4 +15,10 @@ public class SplitDetails {
     private Long userId;
     private BigDecimal amount;
     private Integer shares;
+    private String userName;
+
+    public SplitDetails(Long id, BigDecimal balance) {
+        this.userId = id;
+        this.amount = balance;
+    }
 }

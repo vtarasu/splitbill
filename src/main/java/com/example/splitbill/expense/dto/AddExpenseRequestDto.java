@@ -25,6 +25,7 @@ public class AddExpenseRequestDto {
     private BigDecimal amount;
     private SplitStrategy splitStrategy;
     private LocalDate expenseDate;
+    private ExpenseType expenseType;
 
     public static AddExpenseRequestDto from(Expense expense, UpdateExpenseRequestDto expenseRequestDto) {
         var expenseDate = Objects.nonNull(expenseRequestDto.getExpenseDate()) ?
