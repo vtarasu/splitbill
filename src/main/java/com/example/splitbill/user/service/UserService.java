@@ -5,11 +5,8 @@ import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.InvalidCredentialsException;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
-import com.example.splitbill.user.repo.SettlementsRepository;
 import com.example.splitbill.user.repo.UserRepository;
 import jakarta.transaction.Transactional;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,14 +17,13 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
     private final UserRepository userRepository;
-    private final SettlementsRepository settlementsRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public UserService(UserRepository userRepository, SettlementsRepository settlementsRepository,
-                       PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public UserService(UserRepository userRepository,
+                       PasswordEncoder passwordEncoder,
+                       JwtService jwtService) {
         this.userRepository = userRepository;
-        this.settlementsRepository = settlementsRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
@@ -107,28 +103,6 @@ public class UserService {
                 .username(user.getUsername())
                 .emailId(user.getEmailId())
                 .mobileNumber(user.getMobileNumber())
-                .build();
-    }
-
-    public SettlementHistoryResponseDto getSettlements(Long userId, Integer pageNumber, Integer pageSize) {
-        var pageable = PageRequest.of(pageNumber, pageSize, Sort.by("settledAt").descending());
-        var settlements = settlementsRepository.findByFromIdOrToId(userId, userId, pageable);
-        var totalAmount = settlementsRepository.getTotalSettledAmount(userId);
-        var settlementDtos = settlements.stream()
-                .map(settlement -> SettlementDto.builder()
-                        .id(settlement.getId())
-                        .from(settlement.getFrom().getUsername())
-                        .to(settlement.getTo().getUsername())
-                        .amount(settlement.getAmount())
-                        .settledAt(settlement.getSettledAt())
-                        .build())
-                .toList();
-        return SettlementHistoryResponseDto.builder()
-                .totalPages(settlements.getTotalPages())
-                .totalSettlements(settlements.getNumberOfElements())
-                .totalAmount(totalAmount)
-                .currentPage(pageNumber)
-                .settlements(settlementDtos)
                 .build();
     }
 
