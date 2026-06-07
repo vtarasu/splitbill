@@ -6,5 +6,5 @@ import java.math.BigDecimal;
 
 
 @Builder
-public record OwesDto(String from, String to, BigDecimal amount, Direction direction) {
+public record OwesDto(String from, String to, String username, BigDecimal amount, Direction direction) {
 }
