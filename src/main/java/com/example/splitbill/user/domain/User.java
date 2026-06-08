@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +40,10 @@ public class User {
     private LocalDateTime dateJoinedAt;
 
     private String password;
+    private String stripeCustomerId;
+    private String stripeSubscriptionId;
+    private UserType userType;
+    private LocalDate premiumExpiresAt;
 
     public static User from(CreateUserRequestDto createUserRequestDto) {
         return User.builder()
