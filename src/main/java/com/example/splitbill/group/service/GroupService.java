@@ -13,13 +13,13 @@ import com.example.splitbill.group.domain.UserGroup;
 import com.example.splitbill.group.exception.GroupAlreadyExistsException;
 import com.example.splitbill.group.exception.GroupDoesNotExistsException;
 import com.example.splitbill.group.repo.GroupRepository;
-import com.example.splitbill.user.dto.Direction;
 import com.example.splitbill.user.dto.GetGroupAndBalances;
 import com.example.splitbill.user.dto.OwesDto;
 import com.example.splitbill.user.dto.UserRecord;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
 import com.example.splitbill.user.exception.UserDoesNotExistsException;
 import com.example.splitbill.user.repo.UserRepository;
+import com.example.splitbill.user.service.UserBalancesService;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,13 +41,15 @@ public class GroupService {
     private final UserRepository userRepository;
     private final UserGroupRepository userGroupRepository;
     private final GroupBalancesRepo groupBalancesRepo;
+    private final UserBalancesService userBalancesService;
 
     public GroupService(GroupRepository groupRepository, UserRepository userRepository,
-                        UserGroupRepository userGroupRepository, GroupBalancesRepo groupBalancesRepo) {
+                        UserGroupRepository userGroupRepository, GroupBalancesRepo groupBalancesRepo, UserBalancesService userBalancesService) {
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
         this.userGroupRepository = userGroupRepository;
         this.groupBalancesRepo = groupBalancesRepo;
+        this.userBalancesService = userBalancesService;
     }
 
     public GetGroupAndBalances createGroup(CreateGroupRequestDto createGroupRequestDto) {
@@ -176,17 +178,7 @@ public class GroupService {
     }
 
     private List<OwesDto> findBalances(Long groupId) {
-        var balances = groupBalancesRepo.findByGroupId(groupId);
-        var result = new ArrayList<OwesDto>();
-        for (var balance : balances) {
-            var owes = OwesDto.builder()
-                    .from(balance.getFrom().getUsername())
-                    .to(balance.getTo().getUsername())
-                    .amount(balance.getBalance())
-                    .direction(Direction.GIVE)
-                    .build();
-            result.add(owes);
-        }
-        return result;
+        var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userBalancesService.findUserBalancesForGroup((Long) userId, groupId);
     }
 }

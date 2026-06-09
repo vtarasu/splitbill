@@ -131,4 +131,15 @@ public class UserService {
         return users.stream().map(user -> new UserRecord(user.getId(), user.getUsername()))
                 .toList();
     }
+
+    public SubscriptionDetails getSubscriptionDetails(Long userId) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user"));
+
+        return SubscriptionDetails.builder()
+                .userId(userId)
+                .userType(user.getUserType())
+                .expiryDate(user.getPremiumExpiresAt())
+                .build();
+    }
 }

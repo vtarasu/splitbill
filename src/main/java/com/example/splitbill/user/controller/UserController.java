@@ -97,6 +97,14 @@ public class UserController {
         return userService.getUser(userId);
     }
 
+    @GetMapping("/subscription/details")
+    public SubscriptionDetails getUserSubscriptionDetails() {
+        var auth = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .orElseThrow(() -> new RuntimeException("Invalid token. user details not found"));
+        long userId = (long) auth.getPrincipal();
+        return userService.getSubscriptionDetails(userId);
+    }
+
     @PostMapping("/details")
     public ResponseEntity<?> getUserIdForUserNames(@RequestBody List<String> userNames) {
         try {

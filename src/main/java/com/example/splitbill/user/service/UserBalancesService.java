@@ -60,7 +60,7 @@ public class UserBalancesService {
         return result;
     }
 
-    private List<OwesDto> findUserBalancesForGroup(Long userId, Long groupId) {
+    public List<OwesDto> findUserBalancesForGroup(Long userId, Long groupId) {
         var result = new ArrayList<OwesDto>();
         result.addAll(findOwedBalances(userId, groupId));
         result.addAll(findOwesBalances(userId, groupId));
@@ -74,6 +74,7 @@ public class UserBalancesService {
             var owed = OwesDto.builder()
                     .from(balance.getFrom().getUsername())
                     .to(balance.getTo().getUsername())
+                    .username(balance.getFrom().getUsername())
                     .amount(balance.getBalance())
                     .direction(Direction.GET)
                     .build();
@@ -89,6 +90,7 @@ public class UserBalancesService {
             var owes = OwesDto.builder()
                     .from(balance.getFrom().getUsername())
                     .to(balance.getTo().getUsername())
+                    .username(balance.getTo().getUsername())
                     .amount(balance.getBalance())
                     .direction(Direction.GIVE)
                     .build();

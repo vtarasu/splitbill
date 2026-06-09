@@ -26,7 +26,8 @@ public class SecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .cors(corsConfigurer -> {})
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/user/register/**", "/user/login/**").permitAll()
+                        .requestMatchers("/user/register/**", "/user/login/**",
+                                "/api/subscriptions/webhook**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session ->
