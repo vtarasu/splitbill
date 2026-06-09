@@ -1,6 +1,7 @@
 package com.example.splitbill.user.service;
 
 import com.example.splitbill.user.domain.User;
+import com.example.splitbill.user.domain.UserType;
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.InvalidCredentialsException;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
@@ -136,9 +137,10 @@ public class UserService {
         var user = userRepository.findUserById(userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user"));
 
+        var userType = Objects.isNull(user.getUserType()) ? UserType.FREE : user.getUserType();
         return SubscriptionDetails.builder()
                 .userId(userId)
-                .userType(user.getUserType())
+                .userType(userType)
                 .expiryDate(user.getPremiumExpiresAt())
                 .build();
     }

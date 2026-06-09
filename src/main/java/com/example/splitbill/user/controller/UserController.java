@@ -20,13 +20,9 @@ import java.util.Optional;
 @RequestMapping("/user")
 public class UserController {
     private final UserService userService;
-    private final UserBalancesService userBalancesService;
-    private final SettlementsService settlementsService;
 
-    public UserController(UserService userService, UserBalancesService userBalancesService, SettlementsService settlementsService) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.userBalancesService = userBalancesService;
-        this.settlementsService = settlementsService;
     }
 
     @PostMapping("/register")
