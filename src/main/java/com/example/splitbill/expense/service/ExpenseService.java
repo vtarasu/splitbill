@@ -24,7 +24,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static com.example.splitbill.user.domain.UserType.FREE;
+import static com.example.splitbill.user.domain.UserType.PREMIUM;
 
 @Slf4j
 @Service
@@ -56,7 +56,8 @@ public class ExpenseService {
 
         Long count = expenseRepo.countByAddedByUser_IdAndDateAddedAtBetween(addedBy, startOfDay, endOfDay);
 
-        if (count >= PER_DAY_LIMIT && FREE.equals(addedByUser.getUserType())) {
+        if (count >= PER_DAY_LIMIT && !PREMIUM.equals(addedByUser.getUserType()) &&
+                !ExpenseType.SETTLEMENT.equals(addExpenseRequestDto.getExpenseType())) {
             throw new MaxLimitReachedException("Daily Limit Reached. Get Subscription to add more expenses");
         }
 
