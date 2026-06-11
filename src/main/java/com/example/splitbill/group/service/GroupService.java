@@ -57,12 +57,6 @@ public class GroupService {
         var user = userRepository.findUserById((Long) userId)
                 .orElseThrow(() -> new UserDoesNotExistsException("User not exists."));
 
-        var existingGroup = groupRepository.findGroupByGroupName(createGroupRequestDto.getGroupName());
-        if (existingGroup.isPresent()) {
-            throw new GroupAlreadyExistsException(String.format("Group with name : %s  already exists.",
-                    createGroupRequestDto.getGroupName()));
-        }
-
         var group = Group.builder()
                 .groupName(createGroupRequestDto.getGroupName())
                 .createdBy(user)
