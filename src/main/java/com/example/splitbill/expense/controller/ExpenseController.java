@@ -1,11 +1,15 @@
 package com.example.splitbill.expense.controller;
 
 import com.example.splitbill.expense.dto.*;
+import com.example.splitbill.expense.exception.MaxLimitReachedException;
 import com.example.splitbill.expense.service.ExpenseService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -19,13 +23,21 @@ public class ExpenseController {
 
 
     @PostMapping("/add")
-    public ExpenseResponseDto addExpense(@RequestBody AddExpenseRequestDto addExpenseRequestDto) {
+    public ResponseEntity<?> addExpense(@RequestBody AddExpenseRequestDto addExpenseRequestDto) {
         log.info("Received request to add expense for group. groupId={} expensePaidBy={} expenseSplit={}",
                 addExpenseRequestDto.getGroupId(), addExpenseRequestDto.getPaidBy(),
                 addExpenseRequestDto.getSplitDetails());
-        var addExpenseResponseDto = expenseService.addExpense(addExpenseRequestDto);
-        log.info("Expense added successfully. response={}", addExpenseResponseDto);
-        return addExpenseResponseDto;
+        try {
+            var addExpenseResponseDto = expenseService.addExpense(addExpenseRequestDto);
+            log.info("Expense added successfully. response={}", addExpenseResponseDto);
+            return ResponseEntity.ok(addExpenseResponseDto);
+        } catch (MaxLimitReachedException e) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of(
+                            "code", "MAX_LIMIT_REACHED",
+                            "message", e.getMessage()
+                    ));
+        }
     }
 
     @DeleteMapping("/{id}")

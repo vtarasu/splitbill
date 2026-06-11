@@ -3,6 +3,7 @@ package com.example.splitbill.expense.service;
 import com.example.splitbill.expense.domain.Expense;
 import com.example.splitbill.expense.dto.*;
 import com.example.splitbill.expense.exception.ExpenseDoesNotExistsException;
+import com.example.splitbill.expense.exception.MaxLimitReachedException;
 import com.example.splitbill.expense.repo.ExpenseRepo;
 import com.example.splitbill.expense.service.strategy.ExpenseSplitStrategy;
 import com.example.splitbill.group.exception.GroupDoesNotExistsException;
@@ -17,13 +18,18 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.example.splitbill.user.domain.UserType.FREE;
+
 @Slf4j
 @Service
 public class ExpenseService {
+    private final Long PER_DAY_LIMIT = 5L;
     private final ExpenseRepo expenseRepo;
     private final GroupBalanceService groupBalanceService;
     private final GroupRepository groupRepository;
@@ -40,13 +46,23 @@ public class ExpenseService {
 
     @Transactional
     public ExpenseResponseDto addExpense(AddExpenseRequestDto addExpenseRequestDto) {
+        var addedBy = (Long) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var addedByUser = userRepository.findUserById(addedBy)
+                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"));
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.plusDays(1).atStartOfDay();
+
+        Long count = expenseRepo.countByAddedByUser_IdAndDateAddedAtBetween(addedBy, startOfDay, endOfDay);
+
+        if (count >= PER_DAY_LIMIT && FREE.equals(addedByUser.getUserType())) {
+            throw new MaxLimitReachedException("Daily Limit Reached. Get Subscription to add more expenses");
+        }
+
         var group = Objects.isNull(addExpenseRequestDto.getGroupId()) ? null :
                 groupRepository.findGroupById(addExpenseRequestDto.getGroupId())
                 .orElseThrow(() -> new GroupDoesNotExistsException("Invalid group id received"));
-
-        var addedBy = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        var addedByUser = userRepository.findUserById((Long) addedBy)
-                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"));
 
         var paidByUser = userRepository.findUserById(addExpenseRequestDto.getPaidBy())
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id received"));
