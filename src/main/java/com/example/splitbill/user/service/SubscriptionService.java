@@ -74,7 +74,7 @@ public class SubscriptionService {
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
         if (Objects.isNull(user.getStripeCustomerId())) {
-            throw  new SubscriptionException("Stripe Id doesn't exists.");
+            throw new SubscriptionException("Stripe Id doesn't exists.");
         }
 
         SetupIntentCreateParams params = SetupIntentCreateParams.builder()
@@ -95,11 +95,11 @@ public class SubscriptionService {
                 .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
 
         if (Objects.isNull(user.getStripeCustomerId())) {
-            throw  new SubscriptionException("Stripe Id doesn't exists.");
+            throw new SubscriptionException("Stripe Id doesn't exists.");
         }
 
         try {
-            var customerId       = user.getStripeCustomerId();
+            var customerId = user.getStripeCustomerId();
             var customer = Customer.retrieve(customerId);
             customer.update(CustomerUpdateParams.builder().setInvoiceSettings(
                             CustomerUpdateParams.InvoiceSettings.builder()
@@ -123,7 +123,7 @@ public class SubscriptionService {
                         .setPaymentBehavior(
                                 SubscriptionCreateParams.PaymentBehavior.DEFAULT_INCOMPLETE)
                         .setDefaultPaymentMethod(requestDto.getPaymentMethodId())
-                        .addExpand( "latest_invoice.confirmation_secret")
+                        .addExpand("latest_invoice.confirmation_secret")
                         .build());
                 user.setStripeSubscriptionId(subscription.getId());
                 userRepository.save(user);
@@ -154,22 +154,25 @@ public class SubscriptionService {
         switch (event.getType()) {
             case "customer.subscription.updated" -> {
                 Subscription subscription = (Subscription) event.getDataObjectDeserializer()
-                                .getObject()
-                                .orElseThrow();
+                        .getObject()
+                        .orElseThrow();
 
                 String customerId = subscription.getCustomer();
 
                 var user = userRepository.findUserByStripeCustomerId(customerId)
                         .orElseThrow(() -> new SubscriptionException("Customer ID not found"));
 
-                user.setUserType(UserType.PREMIUM);
-                long periodEnd = subscription.getItems().getData()
-                        .getFirst().getCurrentPeriodEnd();
-
-                LocalDate premiumExpiry = Instant.ofEpochSecond(periodEnd)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate();
-                user.setPremiumExpiresAt(premiumExpiry);
+                if (subscription.getCancelAtPeriodEnd()) {
+                    user.setUserType(UserType.FREE);
+                } else {
+                    user.setUserType(UserType.PREMIUM);
+                    long periodEnd = subscription.getItems().getData()
+                            .getFirst().getCurrentPeriodEnd();
+                    LocalDate premiumExpiry = Instant.ofEpochSecond(periodEnd)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate();
+                    user.setPremiumExpiresAt(premiumExpiry);
+                }
                 userRepository.save(user);
             }
             case "invoice.payment_failed" -> {
@@ -191,6 +194,27 @@ public class SubscriptionService {
                 user.setPremiumExpiresAt(null);
                 userRepository.save(user);
             }
+        }
+    }
+
+    public String cancelSubscription(Long userId) {
+        var user = userRepository.findUserById(userId)
+                .orElseThrow(() -> new UserDoesNotExistsException("Invalid user id"));
+
+        if (Objects.isNull(user.getStripeCustomerId()) || Objects.isNull(user.getStripeSubscriptionId()) ||
+                !UserType.PREMIUM.equals(user.getUserType())) {
+            throw new SubscriptionException("Invalid subscription cancellation request.");
+        }
+
+        Subscription sub = null;
+        try {
+            sub = Subscription.retrieve(user.getStripeSubscriptionId());
+            sub.update(SubscriptionUpdateParams.builder()
+                    .setCancelAtPeriodEnd(true).build());
+            return user.getStripeSubscriptionId();
+        } catch (StripeException e) {
+            log.error("Error occurred while cancelling subscription.", e);
+            throw new SubscriptionException("Error occurred while cancelling subscription.");
         }
     }
 }
