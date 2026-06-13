@@ -11,8 +11,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
-
 @Slf4j
 @RestController
 public class SubscriptionController {
@@ -50,7 +48,7 @@ public class SubscriptionController {
 
     @PostMapping("/stripe/subscribe")
     public ResponseEntity<?> subscribe(
-            @RequestBody SubscriptionRequestDto requestDto) throws StripeException {
+            @RequestBody SubscriptionRequestDto requestDto) {
         try {
             var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             var subscriptionId = subscriptionService.createSubscription((Long) userId, requestDto);
@@ -62,15 +60,17 @@ public class SubscriptionController {
         }
     }
 
-    @PostMapping("/cancel")
-    public ResponseEntity<String> cancel(
-            @RequestBody Map<String, String> body) throws StripeException {
-
-        Subscription sub = Subscription.retrieve(body.get("subscriptionId"));
-        sub.update(SubscriptionUpdateParams.builder()
-                .setCancelAtPeriodEnd(true).build());
-
-        return ResponseEntity.ok("Cancellation scheduled");
+    @PostMapping("/stripe/cancel")
+    public ResponseEntity<String> cancel() throws StripeException {
+        try {
+            var userId = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            var subscriptionId = subscriptionService.cancelSubscription((Long) userId);
+            log.info("Stripe subscription cancelled successfully for userId={}", userId);
+            return ResponseEntity.ok(subscriptionId);
+        } catch (Exception e ) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(e.getMessage());
+        }
     }
 
     @PostMapping("/api/subscriptions/webhook")
