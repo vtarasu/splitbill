@@ -56,7 +56,10 @@ public class ExpenseService {
 
         Long count = expenseRepo.countByAddedByUser_IdAndDateAddedAtBetween(addedBy, startOfDay, endOfDay);
 
-        if (count >= PER_DAY_LIMIT && !PREMIUM.equals(addedByUser.getUserType()) &&
+        var isFreeUser = Objects.isNull(addedByUser.getPremiumExpiresAt()) ||
+                addedByUser.getPremiumExpiresAt().isBefore(LocalDate.now());
+
+        if (count >= PER_DAY_LIMIT && isFreeUser &&
                 !ExpenseType.SETTLEMENT.equals(addExpenseRequestDto.getExpenseType())) {
             throw new MaxLimitReachedException("Daily Limit Reached. Get Subscription to add more expenses");
         }
