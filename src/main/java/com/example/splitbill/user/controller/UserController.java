@@ -2,8 +2,6 @@ package com.example.splitbill.user.controller;
 
 import com.example.splitbill.user.dto.*;
 import com.example.splitbill.user.exception.UserAlreadyExistsException;
-import com.example.splitbill.user.service.SettlementsService;
-import com.example.splitbill.user.service.UserBalancesService;
 import com.example.splitbill.user.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
